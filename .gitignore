@@ -1,0 +1,12 @@
+package-lock.json
+node_modules
+cache/
+.env
+*/.DS_store
+.DS_store
+broadcast/*/*/*
+!broadcast/*/*/run-latest.json
+
+out/*/*
+!out/Resolver.sol/*
+!out/ERC721.sol/*
