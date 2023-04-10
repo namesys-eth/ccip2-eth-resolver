@@ -1,6 +1,6 @@
-# `istest.eth`
+# `CCIP2.eth`
 
-Resolve your ENS testnet `contenthash` on Mainnet 
+Off-chain ENS Records Manager
 
 # Contracts
 

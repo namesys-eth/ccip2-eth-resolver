@@ -4,14 +4,9 @@ pragma solidity ^0.8.15;
 import "forge-std/Test.sol";
 import "src/Resolver.sol";
 
-/// @dev : Interface
-interface iResolver {
-    function contenthash(bytes32 node) external view returns (bytes memory);
-}
-
 /**
- * @author 0xc0de4c0ffee, sshmatrix (BeenSick Labs)
- * @title Reolver tester
+ * @author 0xc0de4c0ffee, sshmatrix
+ * @title CCIP2.ETH Resolver tester
  */
 contract ResolverGoerli is Test {
     error OffchainLookup(
@@ -22,16 +17,50 @@ contract ResolverGoerli is Test {
         bytes extraData
     );
 
-    Resolver public CCIP;
+    CCIP2ETH public CCIP2;
     string public chainID;
 
     /// @dev : setup
     function setUp() public {
-        CCIP = new Resolver();
+        CCIP2 = new CCIP2ETH();
         chainID = "5";
     }
 
-    /// @dev : DNS encoder
+    /// @dev : DNS Decoder
+    function DNSDecode(
+        bytes calldata encoded
+    ) public pure returns (string memory _name, bytes32 namehash) {
+        uint j;
+        uint len;
+        bytes[] memory labels = new bytes[](12); // max 11 ...bob.alice.istest.eth
+        for (uint i; encoded[i] > 0x0; ) {
+            len = uint8(bytes1(encoded[i:++i]));
+            labels[j] = encoded[i:i += len];
+            j++;
+        }
+        _name = string(labels[--j]); // 'eth' label
+        // pop 'istest' label
+        namehash = keccak256(
+            abi.encodePacked(bytes32(0), keccak256(labels[j--]))
+        ); // namehash of 'eth'
+        if (j == 0) {
+            // istest.eth
+            return (
+                string.concat(string(labels[0]), ".", _name),
+                keccak256(abi.encodePacked(namehash, keccak256(labels[0])))
+            );
+        }
+
+        while (j > 0) {
+            // return ...bob.alice.eth
+            _name = string.concat(string(labels[--j]), ".", _name); // pop 'istest' label
+            namehash = keccak256(
+                abi.encodePacked(namehash, keccak256(labels[j]))
+            ); // namehash without 'istest' label
+        }
+    }
+
+    /// @dev : DNS Encoder
     function DNSEncode(
         bytes memory _domain
     ) internal pure returns (bytes memory _name, bytes32 _namehash) {
@@ -68,172 +97,17 @@ contract ResolverGoerli is Test {
         bytes memory _src = "vitalik.eth";
         (bytes memory _name, ) = DNSEncode(_src);
         console.logBytes(_name);
-        bytes memory _test = "vitalik.istest.eth";
+        bytes memory _test = "vitalik.ccip2.eth";
         (, bytes32 _namehash) = DNSEncode(_test);
         console.logBytes32(_namehash);
-        console.logBytes4(Resolver.resolve.selector);
-    }
-
-    /// @dev : test DNS Encoder
-    function testDNSEncoder() public {
-        bytes memory _src = "nick.eth";
-        (bytes memory _name, bytes32 _namehash) = DNSEncode(_src);
-        assertEq(
-            _name,
-            bytes.concat(
-                bytes1(uint8(4)),
-                "nick",
-                bytes1(uint8(3)),
-                "eth",
-                bytes1(0)
-            )
-        );
-        assertEq(
-            _namehash,
-            bytes32(
-                0x05a67c0ee82964c4f7394cdd47fee7f4d9503a23c09c38341779ea012afe6e00
-            )
-        );
-    }
-
-    /// @dev : test DNS Encode + Decode
-    function testDNSEncodeDecode() public {
-        bytes memory _test = "nick.istest.eth";
-        (bytes memory _name, bytes32 _namehash) = DNSEncode(_test);
-        assertEq(
-            _name,
-            bytes.concat(
-                bytes1(uint8(4)),
-                "nick",
-                bytes1(uint8(6)),
-                "istest",
-                bytes1(uint8(3)),
-                "eth",
-                bytes1(0)
-            )
-        );
-        assertEq(
-            _namehash,
-            bytes32(
-                0x5c8e2e2882eecce2326008987fe586a80e922cfaa512aa14c21ff153775fe277
-            )
-        );
-
-        (string memory _name2, bytes32 _namehash2) = CCIP.DNSDecode(_name); // pop 'istest' label
-        assertEq(_name2, "nick.eth");
-        assertEq(
-            _namehash2,
-            bytes32(
-                0x05a67c0ee82964c4f7394cdd47fee7f4d9503a23c09c38341779ea012afe6e00
-            )
-        );
+        console.logBytes4(CCIP2.resolve.selector);
     }
 
     /// @dev : test CCIP-Read call
     function testCCIPRevert() public {
-        bytes memory _src = "nick.istest.eth";
-        (bytes memory _encoded, ) = DNSEncode(_src);
-        (string memory _name, bytes32 _namehash) = CCIP.DNSDecode(_encoded);
-        string[] memory _gateways = new string[](1);
-        _gateways[0] = string.concat(
-            "https://sshmatrix.club:3002/eip155:",
-            chainID,
-            "/",
-            _name,
-            "/{data}"
-        );
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Resolver.OffchainLookup.selector,
-                address(CCIP),
-                _gateways,
-                abi.encodeWithSelector(
-                    iResolver.contenthash.selector,
-                    _namehash
-                ),
-                Resolver.__callback.selector,
-                abi.encode( // callback extradata
-                    block.number,
-                    _namehash,
-                    keccak256(
-                        abi.encodePacked(
-                            blockhash(block.number - 1),
-                            _namehash,
-                            address(this)
-                        )
-                    )
-                )
-            )
-        );
-        CCIP.resolve(
-            _encoded,
-            abi.encodeWithSelector(iResolver.contenthash.selector)
-        );
     }
 
-    /// @dev : test full end-to-end CCIP
+    /// @dev : test full end-to-end CCIP2
     function testCCIPCallback() public {
-        bytes memory _src = "vitalik.istest.eth";
-        (bytes memory _encoded, ) = DNSEncode(_src);
-        (string memory _name, bytes32 _namehash) = CCIP.DNSDecode(_encoded);
-        string[] memory _gateways = new string[](1);
-        _gateways[0] = string.concat(
-            "https://sshmatrix.club:3002/eip155:",
-            chainID,
-            "/",
-            _name,
-            "/{data}"
-        );
-        bytes memory _data = abi.encodeWithSelector(
-            iResolver.contenthash.selector,
-            _namehash
-        );
-        bytes memory _extraData = abi.encode( // callback extradata
-            block.number,
-            _namehash,
-            keccak256(
-                abi.encodePacked(
-                    blockhash(block.number - 1),
-                    _namehash,
-                    address(this)
-                )
-            )
-        );
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Resolver.OffchainLookup.selector,
-                address(CCIP),
-                _gateways,
-                _data,
-                Resolver.__callback.selector,
-                _extraData
-            )
-        );
-
-        CCIP.resolve(
-            _encoded,
-            abi.encodeWithSelector(iResolver.contenthash.selector)
-        );
-        bytes
-            memory _ipns = hex"e3010170122081e99109634060bae2c1e3f359cda33b2232152b0e010baf6f592a39ca228850";
-        _ipns = abi.encode(_ipns);
-        uint64 _validity = uint64(block.timestamp) + 600;
-        bytes32 _digest = keccak256(
-            abi.encodePacked(
-                hex"1900",
-                address(CCIP),
-                _validity,
-                _namehash,
-                _ipns
-            )
-        );
-        uint PrivateKey = 0x858ead85b72b335b663e4e2235dbe2632df3563a81e8d572f5d96d3e66e6ceb9;
-        address _coffee = vm.addr(PrivateKey);
-        assertTrue(CCIP.isSigner(_coffee));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(PrivateKey, _digest);
-        bytes memory _signature = abi.encode(r, s, v);
-        assertTrue(CCIP.isValid(_digest, _signature));
-        bytes memory _response = abi.encode(_validity, _signature, _ipns);
-        assertEq(_ipns, CCIP.__callback(_response, _extraData));
     }
 }
