@@ -55,7 +55,7 @@ interface iToken {
     function safeTransferFrom(address from, address to, uint256 bal) external;
 }
 
-contract CCIP2 is iCCIP {
+contract xCCIP2ETH is iCCIP {
     address private immutable THIS = address(this);
 
     /// @dev : owner/multisig address
@@ -118,7 +118,7 @@ contract CCIP2 is iCCIP {
         returns (bytes memory result)
     {
         bytes memory signature;
-        if (bytes4(response[:4]) == CCIP2.___contenthash.selector) {
+        if (bytes4(response[:4]) == xCCIP2ETH.___contenthash.selector) {
             (result, signature) = abi.decode(response[4:], (bytes, bytes));
             // TODO : verify signature
         } else {
@@ -156,8 +156,8 @@ contract CCIP2 is iCCIP {
     /// @dev : Gateway struct
 
     struct Gate {
-        string domain;
-        uint8 _type; // 0 for hash.ipns.gateway.tld, 1 for gateway/ipns/hash
+        string domain; // "domain.tld" ipfs gateway
+        uint8 _type; // 0 for hash.ipns.gateway.tld, >0 for gateway.tld/ipns/hash
     }
 
     Gate[] public Gateways;
@@ -173,16 +173,14 @@ contract CCIP2 is iCCIP {
         if (len > 5) len = 5;
         urls = new string[](len);
         // pseudo random seeding
-        uint256 k =
-            uint256(keccak256(abi.encodePacked(block.timestamp, _ipns, msg.sender, blockhash(block.number - 1))));
-        string memory _domain;
+        uint256 k = uint256(keccak256(abi.encodePacked(_ipns, msg.sender, blockhash(block.number - 1))));
         for (uint256 i; i < len;) {
             k = uint256(keccak256(abi.encodePacked(k, msg.sender))) % gLen;
             // Gateway @ URL e.g. https://example.xyz/eip155:1/alice.eth/{data}
-            _domain = Gateways[k]._type == 0
-                ? string.concat(_ipns, ".", Gateways[k].domain)
-                : string.concat(_ipns, ".", Gateways[k].domain, "/");
-            urls[i++] = string.concat("https://", Gateways[k]._domain, "/eip155", ":", chainID, "/", _ipns, "/{data}");
+            urls[i++] = Gateways[k]._type == 0
+                ? string.concat("https://", _ipns, ".", Gateways[k].domain, "/", _path)
+                : string.concat("https://", Gateways[k].domain, "/ipns/", _ipns, "/", _path);
+            //string.concat("https://", Gateways[k]._domain, "/eip155", ":", chainID, "/", _ipns, "/{data}");
         }
     }
 
@@ -206,12 +204,12 @@ contract CCIP2 is iCCIP {
                 ++index;
             }
 
-            bool isEth = (keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[index - 1]))) == ethNamehash);
+            bool dotETH = (keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[index - 1]))) == ethNamehash);
 
             bytes4 func = bytes4(data[:4]); // 4 bytes identifier
             //if (func == iResolver.contenthash.selector) {
             // handle contenthash 1st
-            bytes32 _nh; // last namehash holder
+            bytes32 _nh; // last namehash
             bytes32 _namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(bytes(_labels[--index])))); // last label/tld ?".eth"
             string memory _ipns = DefaultIPNS;
             while (index > 0) {
@@ -225,11 +223,11 @@ contract CCIP2 is iCCIP {
             require(_namehash == bytes32(data[4:36]), "Bad Namehash");
 
             //if (signedcontent[_nh].length > 0) { // check owner's signature
-            //    _ipns = bytes.concat(CCIP2.___contenthash.selector, abi.encode(_ipns, signedcontent[_nh]));
+            //    _ipns = bytes.concat(xCCIP2ETH.___contenthash.selector, abi.encode(_ipns, signedcontent[_nh]));
             //}
 
             string[] memory _urls = new string[](2);
-            if (isEth) {
+            if (dotETH) {
                 _urls[0] = 'data:text/plain,{"data":"{data}"}';
                 _urls[1] = 'data:application/json,{"data":"{data}"}';
             } //else {
@@ -241,8 +239,8 @@ contract CCIP2 is iCCIP {
             revert OffchainLookup(
                 THIS, // callback contract
                 _urls, // gateway URL array
-                _ipns, // {data} field
-                CCIP2.___contenthash.selector, // callback function
+                "", //_ipns, // {data} field
+                xCCIP2ETH.___contenthash.selector, // callback function
                 abi.encode( // extradata
                     block.number, // checkpoint
                     keccak256(abi.encodePacked(THIS, blockhash(block.number - 1), msg.sender, _ipns))
@@ -262,7 +260,7 @@ contract CCIP2 is iCCIP {
 
             string[] memory _gateways = new string[](3);
             // TODO : make gateway lists to updatable array ?randomize weight.
-            if (isEth) {
+            if (dotETH) {
                 _gateways[0] = string.concat("https://", _domain, ".limo/.well-known/", _jsonPath, ".json?t={data}");
                 _gateways[1] = string.concat("https://", _domain, ".casa/.well-known/", _jsonPath, ".json?t={data}");
                 _gateways[2] = string.concat("https://", _domain, ".link/.well-known/", _jsonPath, ".json?t={data}");
@@ -275,7 +273,7 @@ contract CCIP2 is iCCIP {
                 THIS, // callback contract
                 _gateways, // gateway URL array
                 abi.encodePacked(uint32(block.timestamp / 60) * 60), // {data} = 0xtimestamp, nocache after 60 seconds
-                CCIP2.__callback.selector, // callback function
+                xCCIP2ETH.__callback.selector, // callback function
                 abi.encode( // extradata
                     block.number, // checkpoint
                     keccak256(data), // namehash + calldata

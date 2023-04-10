@@ -11,7 +11,7 @@ contract CCIP2ETHGoerli is Script {
         vm.startBroadcast();
 
         /// @dev : Deploy
-        CCIP2ETH resolver = new CCIP2ETH();
+        Resolver resolver = new Resolver();
 
         /// @dev : Set resolver on testnet name
         bytes32 namehash =

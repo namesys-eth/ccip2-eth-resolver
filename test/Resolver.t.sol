@@ -11,12 +11,12 @@ import "src/Resolver.sol";
 contract ResolverGoerli is Test {
     error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
 
-    CCIP2ETH public CCIP2;
+    Resolver public CCIP2;
     string public chainID;
 
     /// @dev : setup
     function setUp() public {
-        CCIP2 = new CCIP2ETH();
+        CCIP2 = new Resolver();
         chainID = "5";
     }
 

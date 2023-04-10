@@ -1,69 +1,23 @@
 // SPDX-License-Identifier: WTFPL.ETH
 pragma solidity >0.8.0 <0.9.0;
 
-interface iCCIP {
-    function resolve(bytes memory name, bytes memory data) external view returns (bytes memory);
-}
-
-interface iOverloadResolver {
-    function addr(bytes32 node, uint256 coinType) external view returns (bytes memory);
-}
-
-interface iResolver {
-    function contenthash(bytes32 node) external view returns (bytes memory);
-
-    function addr(bytes32 node) external view returns (address payable);
-
-    function pubkey(bytes32 node) external view returns (bytes32 x, bytes32 y);
-
-    function text(bytes32 node, string calldata key) external view returns (string memory);
-
-    function name(bytes32 node) external view returns (string memory);
-
-    function ABI(bytes32 node, uint256 contentTypes) external view returns (uint256, bytes memory);
-
-    function interfaceImplementer(bytes32 node, bytes4 interfaceID) external view returns (address);
-
-    function zonehash(bytes32 node) external view returns (bytes memory);
-    //function dnsRecord(bytes32 node, bytes32 name, uint16 resource) external view returns (bytes memory);
-    //function recordVersions(bytes32 node) external view returns (uint64);
-}
-
-interface iENS {
-    function owner(bytes32 node) external view returns (address);
-
-    function resolver(bytes32 node) external view returns (address);
-
-    function ttl(bytes32 node) external view returns (uint64);
-
-    function recordExists(bytes32 node) external view returns (bool);
-
-    function isApprovedForAll(address owner, address operator) external view returns (bool);
-
-    function setResolver(bytes32 node, address resolver) external;
-}
-
-interface iERC165 {
-    function supportsInterface(bytes4 interfaceID) external view returns (bool);
-}
-
-interface iToken {
-    function transferFrom(address from, address to, uint256 bal) external;
-
-    function safeTransferFrom(address from, address to, uint256 bal) external;
-}
-
+import "./Interface.sol";
 /**
- * @title : CCIP2 : Off-chain ENS Records Manager
- * @author : 0xc0de4c0ffee.eth, sshmatrix.eth
+ * @title : ccip2.eth : Off-chain ENS Records Manager
+ * @author : freetib.eth, sshmatrix.eth
  */
-contract CCIP2ETH is iCCIP {
+
+contract Resolver is iCCIP {
     address payable immutable THIS = payable(address(this));
 
     /// @dev contract owner/multisig address
-    address payable public Owner;
+    address payable public owner;
 
-    iENS public ENS;
+    /// @dev : ENS contract
+    iENS public immutable ENS = iENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
+
+    /// @dev : ENS Namewrapper
+    iToken public immutable WRAPPER = iToken(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401);
 
     /// @dev root .eth namehash
     bytes32 public immutable roothash = keccak256(abi.encodePacked(bytes32(0), keccak256("eth")));
@@ -91,6 +45,7 @@ contract CCIP2ETH is iCCIP {
         bytes4 _callbackFunction, // callback function
         bytes _extraData // callback extra data
     );
+
     error InvalidSignature(string _error);
 
     /// @dev Resolver function bytes4 selector → Off-chain record filename <name>.json
@@ -98,71 +53,40 @@ contract CCIP2ETH is iCCIP {
     /// Other Mappings
     mapping(bytes32 => bytes) public contenthash; // contenthash; use IPNS for gasless dynamic record updates, or IPFS for static hosting
     mapping(bytes32 => bytes) public signedContenthash; // contenthash; signed by Owner (= approved in ENS)
-    mapping(bytes32 => address) public approved;
-    mapping(bytes32 => address) public isApprovedForAll;
+    mapping(bytes32 => bool) public manager; // ??
+
+    function approved(bytes32 node, address _addr) public view returns (bool) {
+        address _owner = ENS.owner(node);
+        if (_owner == address(WRAPPER)) {
+            _owner = WRAPPER.ownerOf(uint256(node));
+        }
+        return manager[keccak256(abi.encodePacked(node, _owner, _addr))];
+    }
 
     constructor() {
         funcToFile[iResolver.addr.selector] = "addr-60"; // Ethereum address
         funcToFile[iResolver.pubkey.selector] = "pubkey"; // Public key
+        funcToFile[iResolver.name.selector] = "name"; // Name ? Reverse
         funcToFile[iResolver.name.selector] = "name"; // Reverse Record
         funcToFile[iResolver.zonehash.selector] = "zonehash"; // Zonehash
-        Owner = payable(msg.sender);
-    }
-
-    /// @dev revert on fallback
-    fallback() external payable {
-        revert();
-    }
-
-    /// @dev revert on receive
-    receive() external payable {
-        revert();
-    }
-
-    /// @notice : ONLY TESTNET
-    function immolate() external {
-        require(msg.sender == Owner, "NOT_OWNER");
-        selfdestruct(Owner);
-    }
-
-    /**
-     * @dev withdraw Ether to Owner
-     */
-    function withdraw() external {
-        Owner.transfer(THIS.balance);
-    }
-
-    /**
-     * @dev to be used in case some fungible tokens get locked in the contract
-     * @param _token : token address
-     * @param _balance : amount to release
-     */
-    function withdraw(address _token, uint256 _balance) external {
-        iToken(_token).transferFrom(THIS, Owner, _balance);
-    }
-
-    /**
-     * @dev to be used in case some non-fungible tokens get locked in the contract
-     * @param _token : token address
-     * @param _tokenID : tokenID to release
-     */
-    function safeWithdraw(address _token, uint256 _tokenID) external {
-        iToken(_token).safeTransferFrom(THIS, Owner, _tokenID);
+        owner = payable(msg.sender);
     }
 
     /**
      * @dev checks if a signature is valid
      * @param digest : hash of signed message
-     * @param signature : compact signature to verify
+     * @param signature : signature to verify
+     * signature is 64 bytes bytes32(R)+bytes32(VS) compact
+     * or 65 bytes bytes32(R)+bytes32(S)+bytes1(V) long
      */
-    function isValid(bytes32 digest, bytes calldata signature) external view returns (bool) {
+    function isValid(bytes32 digest, bytes calldata signature) external pure returns (address _signer) {
         // First 32 bytes of signature
         bytes32 r = bytes32(signature[:32]);
         // Next 32 bytes of signature
         bytes32 s;
         // Last 1 byte
         uint8 v;
-        if (signature.length > 64) {
+        if (signature.length == 65) {
             s = bytes32(signature[32:64]);
             v = uint8(uint256(bytes32(signature[64:])));
         } else if (signature.length == 64) {
@@ -172,14 +96,17 @@ contract CCIP2ETH is iCCIP {
         } else {
             revert InvalidSignature("BAD_SIG_LENGTH");
         }
-        /// Check for bad signature
+        // Check for bad S value in signature
+        // > OR >= ?
         if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
             revert InvalidSignature("SIG_OVERFLOW");
         }
         /// recover signer
-        address _signer = ecrecover(digest, v, r, s);
+        _signer = ecrecover(digest, v, r, s);
         // @TODO : add check for _signer == owner
-        return (_signer != address(0));
+        if (_signer == address(0)) {
+            revert InvalidSignature("BAD_SIGNATURE");
+        }
     }
 
     /**
@@ -201,11 +128,13 @@ contract CCIP2ETH is iCCIP {
         returns (bytes memory result)
     {
         bytes memory signature;
-        if (bytes4(response[:4]) == CCIP2ETH.___contenthash.selector) {
+        if (bytes4(response[:4]) == Resolver.___contenthash.selector) {
             /// @dev ethers.js/CCIP reverts if the <result> is not ABI-encoded
             (result, signature) = abi.decode(response[4:], (bytes, bytes));
             /// @notice : check signature format; ?no validity
-            if (!CCIP2ETH(THIS).isValid(keccak256(abi.encodePacked(hex"1900", THIS, namehash, result)), signature)) {
+            address _signer =
+                Resolver(THIS).isValid(keccak256(abi.encodePacked(hex"1900", THIS, namehash, result)), signature);
+            {
                 revert InvalidSignature("BAD_SIGNATURE");
             }
         } else {
@@ -233,7 +162,7 @@ contract CCIP2ETH is iCCIP {
             THIS, // callback contract
             _urls, // CCIP gateway URLs
             _contenthash, // {data} field
-            CCIP2ETH.___contenthash.selector, // callback function
+            Resolver.___contenthash.selector, // callback function
             abi.encode( // callback extra data
                 block.number, // check-point
                 keccak256(abi.encodePacked(blockhash(block.number - 1), THIS, msg.sender, _contenthash))
@@ -247,71 +176,12 @@ contract CCIP2ETH is iCCIP {
      * @param _contenthash : tokenID to release
      */
     function setContenthash(bytes32 node, bytes calldata _contenthash) public {
-        address owner = ENS.owner(node);
-        /// @notice : ?check namewrapper
-        require(msg.sender == owner || ENS.isApprovedForAll(owner, msg.sender), "ONLY_OWNER");
-        contenthash[node] = _contenthash;
-        delete signedContenthash[node];
-    }
-
-    /**
-     * @dev sets contenthash for a subdomain
-     * @param node : namehash of ENS domain
-     * @param _labels : subdomain labels; MUST be ordered
-     * @param _contenthash : contenthash value to set
-     */
-    function setSubContenthash(bytes32 node, string[] calldata _labels, bytes calldata _contenthash) public {
-        address owner = ENS.owner(node);
-        /// @notice : ?check namewrapper
-        require(msg.sender == owner || ENS.isApprovedForAll(owner, msg.sender), "ONLY_OWNER");
-        bytes32 _namehash = node;
-        uint256 len = _labels.length;
-        while (len > 0) {
-            _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_labels[--len]))));
+        address _owner = ENS.owner(node);
+        if (_owner == address(WRAPPER)) {
+            _owner = WRAPPER.ownerOf(uint256(node));
         }
-        contenthash[_namehash] = _contenthash;
-        delete signedContenthash[_namehash];
-    }
-
-    /**
-     * @dev sets contenthash signed by the owner
-     * @param node : token address
-     * @param _contenthash : tokenID to release
-     * @param signature : signature of owner
-     */
-    function setSignedContenthash(bytes32 node, bytes calldata _contenthash, bytes calldata signature) public {
-        address owner = ENS.owner(node);
-        // ?check namewrapper
-        require(msg.sender == owner || ENS.isApprovedForAll(owner, msg.sender), "NOT_OWNER");
+        require(msg.sender == _owner || ENS.isApprovedForAll(owner, msg.sender), "ONLY_OWNER");
         contenthash[node] = _contenthash;
-        // @TODO: checking signature will add extra gas here
-        // OR : depend on CCIP callback's revert for bad signature?
-        // COMMENT: seems risky to keep bad signatures on-chain
-        signedContenthash[node] = signature;
-    }
-
-    /**
-     * @dev sets contenthash signed by the owner for a subdomain
-     * @param node : namehash of ENS domain
-     * @param _labels : subdomain labels; MUST be ordered
-     * @param _contenthash : contenthash value to set
-     * @param signature : signature of owner
-     */
-    function setSignedSubContenthash(
-        bytes32 node,
-        string[] calldata _labels,
-        bytes calldata _contenthash,
-        bytes calldata signature
-    ) public {
-        address owner = ENS.owner(node);
-        require(msg.sender == owner || ENS.isApprovedForAll(owner, msg.sender), "NOT_OWNER_OR_MANAGER");
-        bytes32 _namehash = node;
-        uint256 len = _labels.length;
-        while (len > 0) {
-            _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_labels[--len]))));
-        }
-        contenthash[_namehash] = _contenthash;
-        signedContenthash[_namehash] = signature;
     }
 
     /**
@@ -340,11 +210,11 @@ contract CCIP2ETH is iCCIP {
             }
 
             // check if the name contains .eth as root
-            bool isRootETH = (keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[index - 1]))) == roothash);
+            bool dotETH = (keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[index - 1]))) == roothash);
             // 4-byte identifier of requested Resolver function
             bytes4 func = bytes4(data[:4]);
 
-            if (isRootETH && func == iResolver.contenthash.selector) {
+            if (dotETH && func == iResolver.contenthash.selector) {
                 // handle contenthash first
                 bytes32 _namehash;
                 bytes32 __namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(bytes(_labels[--index])))); // MUST be equal to roothash of '.eth'
@@ -361,15 +231,18 @@ contract CCIP2ETH is iCCIP {
 
                 if (_data.length == 0) {
                     _data =
-                        isRootETH ? abi.encode(DefaultContenthash) : abi.encodePacked(uint32(block.timestamp / 60) * 60);
-                } else if (signedContenthash[_namehash].length > 0) {
-                    // check owner's signature
-                    _data =
-                        bytes.concat(CCIP2ETH.___contenthash.selector, abi.encode(_data, signedContenthash[_namehash]));
+                        dotETH ? abi.encode(DefaultContenthash) : abi.encodePacked(uint32(block.timestamp / 60) * 60);
                 }
 
+                //else if (signedContenthash[_namehash].length > 0) {
+                // handled in callback
+                // check owner's signature
+                //    _data =
+                //        bytes.concat(Resolver.___contenthash.selector, abi.encode(_data, signedContenthash[_namehash]));
+                //}
+
                 string[] memory _urls = new string[](2);
-                if (isRootETH) {
+                if (dotETH) {
                     _urls[0] = 'data:text/plain,{"data":"{data}"}';
                     _urls[1] = 'data:application/json,{"data":"{data}"}';
                 } else {
@@ -379,7 +252,7 @@ contract CCIP2ETH is iCCIP {
                     THIS, // callback contract
                     _urls, // CCIP gateway URLs
                     _data, // {data} field
-                    CCIP2ETH.___contenthash.selector, // callback function
+                    Resolver.___contenthash.selector, // callback function
                     abi.encode( // callback extra data
                         block.number, // check-point
                         keccak256(abi.encodePacked(THIS, blockhash(block.number - 1), msg.sender, _data))
@@ -392,6 +265,10 @@ contract CCIP2ETH is iCCIP {
             if (func == iResolver.text.selector) {
                 _pathJSON = abi.decode(data[36:], (string));
             } else if (func == iOverloadResolver.addr.selector) {
+                _pathJSON = string.concat("addr-", uintToNumString(abi.decode(data[36:], (uint256))));
+            } else if (func == iResolver.ABI.selector) {
+                _pathJSON = string.concat("abi-", uintToNumString(abi.decode(data[36:], (uint256))));
+            } else if (func == iResolver.interfaceImplementer.selector) {
                 _pathJSON = string.concat("addr-", uintToNumString(abi.decode(data[36:], (uint256))));
             } else {
                 _pathJSON = funcToFile[func];
@@ -407,7 +284,7 @@ contract CCIP2ETH is iCCIP {
                 THIS, // callback contract
                 _gateways, // CCIP gateway URLs
                 abi.encodePacked(uint32(block.timestamp / 60) * 60), // {data} = 0xtimestamp, not cached beyond 60 seconds
-                CCIP2ETH.__callback.selector, // callback function
+                Resolver.__callback.selector, // callback function
                 abi.encode( // callback extra data
                     block.number, // check-point
                     keccak256(data), // namehash + calldata
@@ -458,5 +335,39 @@ contract CCIP2ETH is iCCIP {
             }
             return string(buffer);
         }
+    }
+
+    /// @dev : Resolver Management functions
+
+    /// @notice : ONLY TESTNET
+    /// TODO : Remove before mainnet deployment
+    function immolate() external {
+        require(msg.sender == owner, "NOT_OWNER");
+        selfdestruct(owner);
+    }
+
+    /**
+     * @dev withdraw Ether to owner
+     */
+    function withdraw() external {
+        owner.transfer(THIS.balance);
+    }
+
+    /**
+     * @dev to be used in case some fungible tokens get locked in the contract
+     * @param _token : token address
+     * @param _balance : amount to release
+     */
+    function withdraw(address _token, uint256 _balance) external {
+        iToken(_token).transferFrom(THIS, owner, _balance);
+    }
+
+    /**
+     * @dev to be used in case some non-fungible tokens get locked in the contract
+     * @param _token : token address
+     * @param _tokenID : tokenID to release
+     */
+    function safeWithdraw(address _token, uint256 _tokenID) external {
+        iToken(_token).safeTransferFrom(THIS, owner, _tokenID);
     }
 }
