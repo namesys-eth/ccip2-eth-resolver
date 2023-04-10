@@ -1,4 +1,3 @@
-node_modules
 cache/
 .env
 */.DS_store
@@ -7,4 +6,4 @@ broadcast/*/*/*
 !broadcast/*/*/run-latest.json
 
 out/*/*
-!out/Resolver.sol/CCIP2ETH.json
+!out/Resolver.sol/Resolver.json
