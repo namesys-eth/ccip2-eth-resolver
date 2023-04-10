@@ -28,21 +28,13 @@ interface iResolver {
     function contenthash(bytes32 node) external view returns (bytes memory);
 
     function addr(bytes32 node) external view returns (address payable);
-
     function pubkey(bytes32 node) external view returns (bytes32 x, bytes32 y);
-
     function text(bytes32 node, string calldata key) external view returns (string memory);
-
     function name(bytes32 node) external view returns (string memory);
-
     function ABI(bytes32 node, uint256 contentTypes) external view returns (uint256, bytes memory);
-
     function interfaceImplementer(bytes32 node, bytes4 interfaceID) external view returns (address);
-
     function zonehash(bytes32 node) external view returns (bytes memory);
-
     function dnsRecord(bytes32 node, bytes32 name, uint16 resource) external view returns (bytes memory);
-
     //function recordVersions(bytes32 node) external view returns (uint64);
 
     /// @dev : set contenthash
