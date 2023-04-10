@@ -2,17 +2,11 @@
 pragma solidity >0.8.0 <0.9.0;
 
 interface iCCIP {
-    function resolve(
-        bytes memory name,
-        bytes memory data
-    ) external view returns (bytes memory);
+    function resolve(bytes memory name, bytes memory data) external view returns (bytes memory);
 }
 
 interface iOverloadResolver {
-    function addr(
-        bytes32 node,
-        uint coinType
-    ) external view returns (bytes memory);
+    function addr(bytes32 node, uint256 coinType) external view returns (bytes memory);
 }
 
 interface iResolver {
@@ -22,22 +16,13 @@ interface iResolver {
 
     function pubkey(bytes32 node) external view returns (bytes32 x, bytes32 y);
 
-    function text(
-        bytes32 node,
-        string calldata key
-    ) external view returns (string memory);
+    function text(bytes32 node, string calldata key) external view returns (string memory);
 
     function name(bytes32 node) external view returns (string memory);
 
-    function ABI(
-        bytes32 node,
-        uint256 contentTypes
-    ) external view returns (uint256, bytes memory);
+    function ABI(bytes32 node, uint256 contentTypes) external view returns (uint256, bytes memory);
 
-    function interfaceImplementer(
-        bytes32 node,
-        bytes4 interfaceID
-    ) external view returns (address);
+    function interfaceImplementer(bytes32 node, bytes4 interfaceID) external view returns (address);
 
     function zonehash(bytes32 node) external view returns (bytes memory);
     //function dnsRecord(bytes32 node, bytes32 name, uint16 resource) external view returns (bytes memory);
@@ -53,10 +38,7 @@ interface iENS {
 
     function recordExists(bytes32 node) external view returns (bool);
 
-    function isApprovedForAll(
-        address owner,
-        address operator
-    ) external view returns (bool);
+    function isApprovedForAll(address owner, address operator) external view returns (bool);
 
     function setResolver(bytes32 node, address resolver) external;
 }
@@ -66,9 +48,9 @@ interface iERC165 {
 }
 
 interface iToken {
-    function transferFrom(address from, address to, uint bal) external;
+    function transferFrom(address from, address to, uint256 bal) external;
 
-    function safeTransferFrom(address from, address to, uint bal) external;
+    function safeTransferFrom(address from, address to, uint256 bal) external;
 }
 
 /**
@@ -84,8 +66,7 @@ contract CCIP2ETH is iCCIP {
     iENS public ENS;
 
     /// @dev root .eth namehash
-    bytes32 public immutable roothash =
-        keccak256(abi.encodePacked(bytes32(0), keccak256("eth")));
+    bytes32 public immutable roothash = keccak256(abi.encodePacked(bytes32(0), keccak256("eth")));
 
     /// @dev default contenthash for *.CCIP2.eth
     // 0 "bafzaajaiaejcapc2xjwjwucvux5beka4jbqyr3mk4k3o6oklhwmbwagrpjfvc424"
@@ -100,12 +81,7 @@ contract CCIP2ETH is iCCIP {
 
     /// @dev namehash of 'ccip2.eth'
     bytes32 public immutable namehash =
-        keccak256(
-            abi.encodePacked(
-                keccak256(abi.encodePacked(bytes32(0), keccak256("eth"))),
-                keccak256("ccip2")
-            )
-        );
+        keccak256(abi.encodePacked(keccak256(abi.encodePacked(bytes32(0), keccak256("eth"))), keccak256("ccip2")));
 
     /// @dev CCIP Off-chain Lookup (https://eips.ethereum.org/EIPS/eip-3668)
     error OffchainLookup(
@@ -179,10 +155,7 @@ contract CCIP2ETH is iCCIP {
      * @param digest : hash of signed message
      * @param signature : compact signature to verify
      */
-    function isValid(
-        bytes32 digest,
-        bytes calldata signature
-    ) external view returns (bool) {
+    function isValid(bytes32 digest, bytes calldata signature) external view returns (bool) {
         // First 32 bytes of signature
         bytes32 r = bytes32(signature[:32]);
         // Next 32 bytes of signature
@@ -194,20 +167,15 @@ contract CCIP2ETH is iCCIP {
             v = uint8(uint256(bytes32(signature[64:])));
         } else if (signature.length == 64) {
             bytes32 vs = bytes32(signature[32:]);
-            s =
-                vs &
-                bytes32(
-                    0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-                );
+            s = vs & bytes32(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
             v = uint8((uint256(vs) >> 255) + 27);
         } else {
             revert InvalidSignature("BAD_SIG_LENGTH");
         }
         /// Check for bad signature
-        if (
-            uint256(s) >
-            0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0
-        ) revert InvalidSignature("SIG_OVERFLOW");
+        if (uint256(s) > 0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF5D576E7357A4501DDFE92F46681B20A0) {
+            revert InvalidSignature("SIG_OVERFLOW");
+        }
         /// recover signer
         address _signer = ecrecover(digest, v, r, s);
         // @TODO : add check for _signer == owner
@@ -218,11 +186,8 @@ contract CCIP2ETH is iCCIP {
      * @dev Interface Selector
      * @param interfaceID : interface identifier
      */
-    function supportsInterface(
-        bytes4 interfaceID
-    ) external pure returns (bool) {
-        return (interfaceID == iCCIP.resolve.selector ||
-            interfaceID == iERC165.supportsInterface.selector);
+    function supportsInterface(bytes4 interfaceID) external pure returns (bool) {
+        return (interfaceID == iCCIP.resolve.selector || interfaceID == iERC165.supportsInterface.selector);
     }
 
     /**
@@ -230,43 +195,28 @@ contract CCIP2ETH is iCCIP {
      * @param response : response of HTTP call
      * @param extraData : extra data for callback
      */
-    function ___contenthash(
-        bytes calldata response,
-        bytes calldata extraData
-    ) external view returns (bytes memory result) {
+    function ___contenthash(bytes calldata response, bytes calldata extraData)
+        external
+        view
+        returns (bytes memory result)
+    {
         bytes memory signature;
         if (bytes4(response[:4]) == CCIP2ETH.___contenthash.selector) {
             /// @dev ethers.js/CCIP reverts if the <result> is not ABI-encoded
             (result, signature) = abi.decode(response[4:], (bytes, bytes));
             /// @notice : check signature format; ?no validity
-            if (
-                !CCIP2ETH(THIS).isValid(
-                    keccak256(
-                        abi.encodePacked(hex"1900", THIS, namehash, result)
-                    ),
-                    signature
-                )
-            ) revert InvalidSignature("BAD_SIGNATURE");
+            if (!CCIP2ETH(THIS).isValid(keccak256(abi.encodePacked(hex"1900", THIS, namehash, result)), signature)) {
+                revert InvalidSignature("BAD_SIGNATURE");
+            }
         } else {
             result = response;
         }
         /// @dev timeout check
-        (uint _blocknumber, bytes32 _contenthashCheck) = abi.decode(
-            extraData,
-            (uint, bytes32)
-        );
+        (uint256 _blocknumber, bytes32 _contenthashCheck) = abi.decode(extraData, (uint256, bytes32));
         // timeout in 1 block
         require(
-            block.number <= _blocknumber + 1 &&
-                _contenthashCheck ==
-                keccak256(
-                    abi.encodePacked(
-                        blockhash(--_blocknumber),
-                        THIS,
-                        msg.sender,
-                        result
-                    )
-                ),
+            block.number <= _blocknumber + 1
+                && _contenthashCheck == keccak256(abi.encodePacked(blockhash(--_blocknumber), THIS, msg.sender, result)),
             "INVALID_CHECKSUM"
         );
     }
@@ -286,14 +236,7 @@ contract CCIP2ETH is iCCIP {
             CCIP2ETH.___contenthash.selector, // callback function
             abi.encode( // callback extra data
                 block.number, // check-point
-                keccak256(
-                    abi.encodePacked(
-                        blockhash(block.number - 1),
-                        THIS,
-                        msg.sender,
-                        _contenthash
-                    )
-                )
+                keccak256(abi.encodePacked(blockhash(block.number - 1), THIS, msg.sender, _contenthash))
             )
         );
     }
@@ -306,10 +249,7 @@ contract CCIP2ETH is iCCIP {
     function setContenthash(bytes32 node, bytes calldata _contenthash) public {
         address owner = ENS.owner(node);
         /// @notice : ?check namewrapper
-        require(
-            msg.sender == owner || ENS.isApprovedForAll(owner, msg.sender),
-            "ONLY_OWNER"
-        );
+        require(msg.sender == owner || ENS.isApprovedForAll(owner, msg.sender), "ONLY_OWNER");
         contenthash[node] = _contenthash;
         delete signedContenthash[node];
     }
@@ -320,23 +260,14 @@ contract CCIP2ETH is iCCIP {
      * @param _labels : subdomain labels; MUST be ordered
      * @param _contenthash : contenthash value to set
      */
-    function setSubContenthash(
-        bytes32 node,
-        string[] calldata _labels,
-        bytes calldata _contenthash
-    ) public {
+    function setSubContenthash(bytes32 node, string[] calldata _labels, bytes calldata _contenthash) public {
         address owner = ENS.owner(node);
         /// @notice : ?check namewrapper
-        require(
-            msg.sender == owner || ENS.isApprovedForAll(owner, msg.sender),
-            "ONLY_OWNER"
-        );
+        require(msg.sender == owner || ENS.isApprovedForAll(owner, msg.sender), "ONLY_OWNER");
         bytes32 _namehash = node;
-        uint len = _labels.length;
+        uint256 len = _labels.length;
         while (len > 0) {
-            _namehash = keccak256(
-                abi.encodePacked(_namehash, keccak256(bytes(_labels[--len])))
-            );
+            _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_labels[--len]))));
         }
         contenthash[_namehash] = _contenthash;
         delete signedContenthash[_namehash];
@@ -348,17 +279,10 @@ contract CCIP2ETH is iCCIP {
      * @param _contenthash : tokenID to release
      * @param signature : signature of owner
      */
-    function setSignedContenthash(
-        bytes32 node,
-        bytes calldata _contenthash,
-        bytes calldata signature
-    ) public {
+    function setSignedContenthash(bytes32 node, bytes calldata _contenthash, bytes calldata signature) public {
         address owner = ENS.owner(node);
         // ?check namewrapper
-        require(
-            msg.sender == owner || ENS.isApprovedForAll(owner, msg.sender),
-            "NOT_OWNER"
-        );
+        require(msg.sender == owner || ENS.isApprovedForAll(owner, msg.sender), "NOT_OWNER");
         contenthash[node] = _contenthash;
         // @TODO: checking signature will add extra gas here
         // OR : depend on CCIP callback's revert for bad signature?
@@ -380,16 +304,11 @@ contract CCIP2ETH is iCCIP {
         bytes calldata signature
     ) public {
         address owner = ENS.owner(node);
-        require(
-            msg.sender == owner || ENS.isApprovedForAll(owner, msg.sender),
-            "NOT_OWNER_OR_MANAGER"
-        );
+        require(msg.sender == owner || ENS.isApprovedForAll(owner, msg.sender), "NOT_OWNER_OR_MANAGER");
         bytes32 _namehash = node;
-        uint len = _labels.length;
+        uint256 len = _labels.length;
         while (len > 0) {
-            _namehash = keccak256(
-                abi.encodePacked(_namehash, keccak256(bytes(_labels[--len])))
-            );
+            _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_labels[--len]))));
         }
         contenthash[_namehash] = _contenthash;
         signedContenthash[_namehash] = signature;
@@ -400,14 +319,11 @@ contract CCIP2ETH is iCCIP {
      * @param name : ENS name to resolve
      * @param data : data encoding specific resolver function
      */
-    function resolve(
-        bytes calldata name,
-        bytes calldata data
-    ) external view returns (bytes memory) {
+    function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
         unchecked {
-            uint index; // domain level index
-            uint i = 1; // counter
-            uint len = uint8(bytes1(name[:1])); // length of label
+            uint256 index; // domain level index
+            uint256 i = 1; // counter
+            uint256 len = uint8(bytes1(name[:1])); // length of label
             bytes[] memory _labels = new bytes[](42); // maximum 42 allowed levels in sub.sub...domain.eth
             _labels[index++] = name[1:i += len];
 
@@ -424,29 +340,17 @@ contract CCIP2ETH is iCCIP {
             }
 
             // check if the name contains .eth as root
-            bool isRootETH = (keccak256(
-                abi.encodePacked(bytes32(0), keccak256(_labels[index - 1]))
-            ) == roothash);
+            bool isRootETH = (keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[index - 1]))) == roothash);
             // 4-byte identifier of requested Resolver function
             bytes4 func = bytes4(data[:4]);
 
             if (isRootETH && func == iResolver.contenthash.selector) {
                 // handle contenthash first
                 bytes32 _namehash;
-                bytes32 __namehash = keccak256(
-                    abi.encodePacked(
-                        bytes32(0),
-                        keccak256(bytes(_labels[--index]))
-                    )
-                ); // MUST be equal to roothash of '.eth'
+                bytes32 __namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(bytes(_labels[--index])))); // MUST be equal to roothash of '.eth'
                 bytes memory _data; // contenthash
                 while (index > 0) {
-                    __namehash = keccak256(
-                        abi.encodePacked(
-                            __namehash,
-                            keccak256(bytes(_labels[--index]))
-                        )
-                    );
+                    __namehash = keccak256(abi.encodePacked(__namehash, keccak256(bytes(_labels[--index]))));
                     if (contenthash[__namehash].length != 0) {
                         _data = abi.encode(contenthash[__namehash]);
                         _namehash = __namehash;
@@ -456,15 +360,12 @@ contract CCIP2ETH is iCCIP {
                 // require(_namehash == bytes32(data[4:36]), "BAD_NAMEHASH");
 
                 if (_data.length == 0) {
-                    _data = isRootETH
-                        ? abi.encode(DefaultContenthash)
-                        : abi.encodePacked(uint32(block.timestamp / 60) * 60);
+                    _data =
+                        isRootETH ? abi.encode(DefaultContenthash) : abi.encodePacked(uint32(block.timestamp / 60) * 60);
                 } else if (signedContenthash[_namehash].length > 0) {
                     // check owner's signature
-                    _data = bytes.concat(
-                        CCIP2ETH.___contenthash.selector,
-                        abi.encode(_data, signedContenthash[_namehash])
-                    );
+                    _data =
+                        bytes.concat(CCIP2ETH.___contenthash.selector, abi.encode(_data, signedContenthash[_namehash]));
                 }
 
                 string[] memory _urls = new string[](2);
@@ -481,14 +382,7 @@ contract CCIP2ETH is iCCIP {
                     CCIP2ETH.___contenthash.selector, // callback function
                     abi.encode( // callback extra data
                         block.number, // check-point
-                        keccak256(
-                            abi.encodePacked(
-                                THIS,
-                                blockhash(block.number - 1),
-                                msg.sender,
-                                _data
-                            )
-                        )
+                        keccak256(abi.encodePacked(THIS, blockhash(block.number - 1), msg.sender, _data))
                     )
                 );
             }
@@ -498,38 +392,17 @@ contract CCIP2ETH is iCCIP {
             if (func == iResolver.text.selector) {
                 _pathJSON = abi.decode(data[36:], (string));
             } else if (func == iOverloadResolver.addr.selector) {
-                _pathJSON = string.concat(
-                    "addr-",
-                    uintToNumString(abi.decode(data[36:], (uint)))
-                );
+                _pathJSON = string.concat("addr-", uintToNumString(abi.decode(data[36:], (uint256))));
             } else {
                 _pathJSON = funcToFile[func];
-                require(
-                    bytes(_pathJSON).length != 0,
-                    "RESOLVER_FUNC_NOT_IMPLEMENTED"
-                );
+                require(bytes(_pathJSON).length != 0, "RESOLVER_FUNC_NOT_IMPLEMENTED");
             }
 
             string[] memory _gateways = new string[](3);
             // @TODO : change gateway storage from lists to updatable array; ?randomize weight
-            _gateways[0] = string.concat(
-                _domain,
-                ".limo/.well-known/",
-                _pathJSON,
-                ".json?t={data}"
-            );
-            _gateways[1] = string.concat(
-                _domain,
-                ".casa/.well-known/",
-                _pathJSON,
-                ".json?t={data}"
-            );
-            _gateways[2] = string.concat(
-                _domain,
-                ".link/.well-known/",
-                _pathJSON,
-                ".json?t={data}"
-            );
+            _gateways[0] = string.concat(_domain, ".limo/.well-known/", _pathJSON, ".json?t={data}");
+            _gateways[1] = string.concat(_domain, ".casa/.well-known/", _pathJSON, ".json?t={data}");
+            _gateways[2] = string.concat(_domain, ".link/.well-known/", _pathJSON, ".json?t={data}");
             revert OffchainLookup(
                 THIS, // callback contract
                 _gateways, // CCIP gateway URLs
@@ -538,14 +411,7 @@ contract CCIP2ETH is iCCIP {
                 abi.encode( // callback extra data
                     block.number, // check-point
                     keccak256(data), // namehash + calldata
-                    keccak256(
-                        abi.encodePacked(
-                            THIS,
-                            blockhash(block.number - 1),
-                            msg.sender,
-                            keccak256(data)
-                        )
-                    )
+                    keccak256(abi.encodePacked(THIS, blockhash(block.number - 1), msg.sender, keccak256(data)))
                 )
             );
         }
@@ -556,29 +422,16 @@ contract CCIP2ETH is iCCIP {
      * @param response : response of HTTP call
      * @param extraData: extra data required by callback
      */
-    function __callback(
-        bytes calldata response,
-        bytes calldata extraData
-    ) external view returns (bytes memory) {
-        (
-            uint _blocknumber,
-            bytes32 _domainhash,
-            bytes32 _contenthashCheck
-        ) = abi.decode(extraData, (uint, bytes32, bytes32));
+    function __callback(bytes calldata response, bytes calldata extraData) external view returns (bytes memory) {
+        (uint256 _blocknumber, bytes32 _domainhash, bytes32 _contenthashCheck) =
+            abi.decode(extraData, (uint256, bytes32, bytes32));
         // timeout in 3 blocks
         // 3 * 13 ~ 39 seconds
         // check timeout > ipfs gateway timeout
         require(
-            block.number <= _blocknumber + 3 &&
-                _contenthashCheck ==
-                keccak256(
-                    abi.encodePacked(
-                        blockhash(--_blocknumber),
-                        THIS,
-                        msg.sender,
-                        _domainhash
-                    )
-                ),
+            block.number <= _blocknumber + 3
+                && _contenthashCheck
+                    == keccak256(abi.encodePacked(blockhash(--_blocknumber), THIS, msg.sender, _domainhash)),
             "INVALID_CHECKSUM"
         );
         /// JSON data MUST be ABI-encoded
@@ -589,10 +442,10 @@ contract CCIP2ETH is iCCIP {
      * @dev format/convert interger to string
      * @param value : value to format/convert
      */
-    function uintToNumString(uint value) public pure returns (string memory) {
+    function uintToNumString(uint256 value) public pure returns (string memory) {
         if (value == 0) return "0";
-        uint temp = value;
-        uint digits;
+        uint256 temp = value;
+        uint256 digits;
         unchecked {
             while (temp != 0) {
                 ++digits;

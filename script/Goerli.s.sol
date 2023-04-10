@@ -14,12 +14,8 @@ contract CCIP2ETHGoerli is Script {
         CCIP2ETH resolver = new CCIP2ETH();
 
         /// @dev : Set resolver on testnet name
-        bytes32 namehash = keccak256(
-            abi.encodePacked(
-                keccak256(abi.encodePacked(bytes32(0), keccak256("eth"))),
-                keccak256("ccip2")
-            )
-        );
+        bytes32 namehash =
+            keccak256(abi.encodePacked(keccak256(abi.encodePacked(bytes32(0), keccak256("eth"))), keccak256("ccip2")));
         ENS.setResolver(namehash, address(resolver));
         vm.stopBroadcast();
         resolver;
