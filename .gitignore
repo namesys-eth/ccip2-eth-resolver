@@ -7,4 +7,3 @@ broadcast/*/*/*
 
 out/*/*
 !out/Resolver.sol/Resolver.json
-scratch/
