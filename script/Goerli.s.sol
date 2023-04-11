@@ -11,15 +11,11 @@ contract CCIP2ETHGoerli is Script {
         vm.startBroadcast();
 
         /// @dev : Deploy
-        CCIP2ETH resolver = new CCIP2ETH();
+        Resolver resolver = new Resolver();
 
         /// @dev : Set resolver on testnet name
-        bytes32 namehash = keccak256(
-            abi.encodePacked(
-                keccak256(abi.encodePacked(bytes32(0), keccak256("eth"))),
-                keccak256("ccip2")
-            )
-        );
+        bytes32 namehash =
+            keccak256(abi.encodePacked(keccak256(abi.encodePacked(bytes32(0), keccak256("eth"))), keccak256("ccip2")));
         ENS.setResolver(namehash, address(resolver));
         vm.stopBroadcast();
         resolver;
