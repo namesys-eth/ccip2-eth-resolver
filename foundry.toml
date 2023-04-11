@@ -5,8 +5,9 @@ libs = ['lib']
 
 # Enables or disables the optimizer
 optimizer = true
+viaIR = true
 
 # The number of optimizer runs
-optimizer_runs = 200
+optimizer_runs = 999
 gas_reports = ["*"]
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config

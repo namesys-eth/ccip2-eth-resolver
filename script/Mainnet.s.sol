@@ -9,7 +9,7 @@ contract IsTestMainnet is Script {
         vm.startBroadcast();
 
         /// @dev : Deploy
-        CCIP2ETH resolver = new CCIP2ETH();
+        Resolver resolver = new Resolver();
         vm.stopBroadcast();
         resolver;
     }
