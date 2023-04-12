@@ -104,10 +104,8 @@ contract ResolverGoerli is Test {
     }
 
     /// @dev : test CCIP-Read call
-    function testCCIPRevert() public {
-    }
+    function testCCIPRevert() public {}
 
     /// @dev : test full end-to-end CCIP2
-    function testCCIPCallback() public {
-    }
+    function testCCIPCallback() public {}
 }

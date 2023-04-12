@@ -39,7 +39,7 @@ interface iResolver {
         bytes4 interfaceID
     ) external view returns (address);
 
-    function zonehash(bytes32 node) external view returns (bytes memory);
+    //function zonehash(bytes32 node) external view returns (bytes memory);
     //function dnsRecord(bytes32 node, bytes32 name, uint16 resource) external view returns (bytes memory);
     //function recordVersions(bytes32 node) external view returns (uint64);
 }
@@ -129,7 +129,7 @@ contract CCIP2ETH is iCCIP {
         funcToFile[iResolver.addr.selector] = "addr-60"; // Ethereum address
         funcToFile[iResolver.pubkey.selector] = "pubkey"; // Public key
         funcToFile[iResolver.name.selector] = "name"; // Reverse Record
-        funcToFile[iResolver.zonehash.selector] = "zonehash"; // Zonehash
+        //funcToFile[iResolver.zonehash.selector] = "zonehash"; // Zonehash
         Owner = payable(msg.sender);
     }
 
@@ -182,7 +182,7 @@ contract CCIP2ETH is iCCIP {
     function isValid(
         bytes32 digest,
         bytes calldata signature
-    ) external view returns (bool) {
+    ) external pure returns (bool) {
         // First 32 bytes of signature
         bytes32 r = bytes32(signature[:32]);
         // Next 32 bytes of signature
