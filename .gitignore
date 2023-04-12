@@ -4,6 +4,6 @@ cache/
 .DS_store
 broadcast/*/*/*
 !broadcast/*/*/run-latest.json
-
+scratch/
 out/*/*
 !out/Resolver.sol/Resolver.json
