@@ -12,12 +12,18 @@ interface iENS {
     function recordExists(bytes32 node) external view returns (bool);
     function isApprovedForAll(address owner, address operator) external view returns (bool);
 
-    // write function
+    // write function used only for test/deploy
     function setResolver(bytes32 node, address resolver) external;
 }
 
 interface iCCIP {
     function resolve(bytes memory name, bytes memory data) external view returns (bytes memory);
+
+    function __callback(bytes calldata response, bytes calldata extraData)
+        external
+        view
+        returns (bytes memory result);
+
 }
 
 interface iIPNS {
