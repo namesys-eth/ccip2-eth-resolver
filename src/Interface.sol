@@ -24,6 +24,7 @@ interface iCCIP {
         view
         returns (bytes memory result);
 
+    function signedBy(bytes32 digest, bytes calldata signature) external pure returns (address _addr);
 }
 
 interface iIPNS {

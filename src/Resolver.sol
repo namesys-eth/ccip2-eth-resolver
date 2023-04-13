@@ -30,6 +30,17 @@ contract Resolver is iCCIP, Gateway {
     bytes public DefaultContenthash =
         hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
 
+    /// @dev constructor initial setup
+    constructor() {
+        funcToFile[iResolver.addr.selector] = "addr-60"; // Ethereum address
+        funcToFile[iResolver.pubkey.selector] = "pubkey"; // Public key
+        funcToFile[iResolver.name.selector] = "name"; // Name ? Reverse
+        //funcToFile[iResolver.name.selector] = "name"; // Reverse Record
+        funcToFile[iResolver.contenthash.selector] = "contenthash"; // contenthash record for web contents
+        funcToFile[iResolver.zonehash.selector] = "zonehash"; // Zonehash
+        owner = payable(msg.sender);
+    }
+
     /// @dev CCIP Off-chain Lookup (https://eips.ethereum.org/EIPS/eip-3668)
     error OffchainLookup(
         address _from, // sender (this contract)
@@ -65,16 +76,6 @@ contract Resolver is iCCIP, Gateway {
         require(_owner == msg.sender);
         manager[keccak256(abi.encodePacked("manage-one", node, _owner, _addr))] = _approved;
         // event ?
-    }
-
-    constructor() {
-        funcToFile[iResolver.addr.selector] = "addr-60"; // Ethereum address
-        funcToFile[iResolver.pubkey.selector] = "pubkey"; // Public key
-        funcToFile[iResolver.name.selector] = "name"; // Name ? Reverse
-        //funcToFile[iResolver.name.selector] = "name"; // Reverse Record
-        funcToFile[iResolver.contenthash.selector] = "contenthash"; // contenthash record for web contents
-        funcToFile[iResolver.zonehash.selector] = "zonehash"; // Zonehash
-        owner = payable(msg.sender);
     }
 
     /**
@@ -119,36 +120,7 @@ contract Resolver is iCCIP, Gateway {
         );
     }
 
-    /**
-     * @dev contenthash callback
-     * @param response : response of HTTP call
-     * @param extraData : extra data for callback
-     */
-    function ___contenthash(bytes calldata response, bytes calldata extraData)
-        external
-        view
-        returns (bytes memory result)
-    {
-        bytes memory signature;
-        if (bytes4(response[:4]) == Resolver.___contenthash.selector) {
-            /// @dev ethers.js/CCIP reverts if the <result> is not ABI-encoded
-            (result, signature) = abi.decode(response[4:], (bytes, bytes));
-            /// @notice : check signature format; ?no validity
-            //address _signer =
-            //Resolver(THIS).getSigner(keccak256(abi.encodePacked(hex"1900", THIS, namehash, result)), signature);
-        } else {
-            result = response; // must be pre abi-encoded
-        }
-        /// @dev timeout check
-        (uint256 _blocknumber, bytes32 _check) = abi.decode(extraData, (uint256, bytes32));
-        // timeout in 2 blocks
-        require(
-            block.number <= _blocknumber + 2
-                && _check == keccak256(abi.encodePacked(blockhash(--_blocknumber), THIS, msg.sender, result)),
-            "INVALID_CHECKSUM"
-        );
-    }
-    /// @dev : lookup function
+    /// @dev : CCIP read function
 
     function CCIPRead(bytes32 _node, bytes memory _data, bytes memory _ipns, string memory _path) public view {
         bytes32 k = keccak256(abi.encodePacked(blockhash(block.number - 1), THIS, msg.sender, _node));
@@ -166,11 +138,24 @@ contract Resolver is iCCIP, Gateway {
         );
     }
 
+    modifier isAuthorized(bytes32 node) {
+        address _owner = ENS.owner(node);
+        if (_owner == address(WRAPPER)) {
+            _owner = WRAPPER.ownerOf(uint256(node));
+        }
+        require(
+            manager[keccak256(abi.encodePacked("manage-one", node, owner, msg.sender))]
+                || manager[keccak256(abi.encodePacked("manage-all", owner, msg.sender))] || msg.sender == _owner,
+            "ONLY_OWNER/MANAGER"
+        );
+        _;
+    }
     /**
      * @dev sets contenthash
      * @param node : token address
      * @param _contenthash : tokenID to release
      */
+
     function setContenthash(bytes32 node, bytes calldata _contenthash) public {
         require(bytes4(_contenthash[:4]) == hex"e5010172", "IPNS_ONLY");
         address _owner = ENS.owner(node);
@@ -190,8 +175,9 @@ contract Resolver is iCCIP, Gateway {
      * @dev core Resolve function
      * @param name : ENS name to resolve, DNS encoded
      * @param data : data encoding specific resolver function
+     * @return result : data encoding specific resolver function
      */
-    function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
+    function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory result) {
         uint256 index = 1; // domain level index
         uint256 i = 1; // counter
         uint256 len = uint8(bytes1(name[:1])); // length of label
@@ -211,8 +197,9 @@ contract Resolver is iCCIP, Gateway {
 
         // check if the name contains .eth as root
         // bool dotETH = (keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[index - 1]))) == roothash);
-        // 4-byte identifier of requested Resolver function
+
         bytes4 func = bytes4(data[:4]);
+
         bytes32 _node;
         bytes32 _namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(bytes(_labels[--index])))); // MUST be equal to roothash of '.eth'
         bytes memory _ipns; // contenthash
@@ -223,32 +210,35 @@ contract Resolver is iCCIP, Gateway {
                 _node = _namehash;
             }
         }
-        // should never revert with ENSIP-10 compatible apps/wallets
+
         // require(_node == bytes32(data[4:36]), "BAD_NAMEHASH");
 
         if (_ipns.length == 0) {
             _ipns = DefaultContenthash;
         }
-            // _urls[0] = 'data:text/plain,{"data":"{data}"}';
-            //_urls[1] = 'data:application/json,{"data":"{data}"}';
         string memory _pathJSON;
-        //bytes4 _callbackFunc;
-        //if (func == iResolver.contenthash.selector)
 
-        if (func == iResolver.text.selector) {
+        if (bytes(funcToFile[func]).length > 0) {
+            _pathJSON = funcToFile[func];
+        } else if (func == iResolver.text.selector) {
             _pathJSON = abi.decode(data[36:], (string));
         } else if (func == iOverloadResolver.addr.selector) {
-            _pathJSON = string.concat("addr-", uintToNumString(abi.decode(data[36:], (uint256))));
-        } else if (func == iResolver.ABI.selector) {
-            // recheck
-            _pathJSON = string.concat("abi-", bytes2HexString(abi.encodePacked(abi.decode(data[36:], (bytes4))), 0));
+            _pathJSON = string.concat("_addr/", uintToNumString(abi.decode(data[36:], (uint256))));
         } else if (func == iResolver.interfaceImplementer.selector) {
-            _pathJSON = string.concat("interface-", uintToNumString(abi.decode(data[36:], (uint256))));
+            _pathJSON =
+                string.concat("_interface/", bytes2HexString(abi.encodePacked(abi.decode(data[36:], (bytes4))), 0));
+        } else if (func == iResolver.ABI.selector) {
+            // recheck this
+            _pathJSON = string.concat("_abi/", uintToNumString(abi.decode(data[36:], (uint256))));
+        } else if (func == iResolver.dnsRecord.selector) {
+            (bytes32 _name, uint16 resource) = abi.decode(data[36:], (bytes32, uint16));
+            _pathJSON =
+                string.concat("_dns/", bytes2HexString(abi.encodePacked(_name), 0), "/", uintToNumString(resource));
         } else {
-            _pathJSON = funcToFile[func];
-            require(bytes(_pathJSON).length != 0, "RESOLVER_FUNCTION_NOT_IMPLEMENTED");
+            revert NotImplemented(func);
         }
 
+        return result;
         //string[] memory _gateways = new string[](3);
         // @TODO : change gateway storage from lists to updatable array; ?randomize weight
         //_gateways[0] = string.concat(_domain, ".limo/.well-known/", _pathJSON, ".json?t={data}");
@@ -267,18 +257,20 @@ contract Resolver is iCCIP, Gateway {
             );*/
     }
 
+    error NotImplemented(bytes4 func);
     /**
      * @dev callback function
      * @param response : response of HTTP call
      * @param extraData: extra data required by callback
      */
+
     function __callback(bytes calldata response, bytes calldata extraData)
         external
         view
         returns (bytes memory result)
     {
         bytes memory signature;
-        if (bytes4(response[:4]) == Resolver.___contenthash.selector) {
+        if (bytes4(response[:4]) == iCCIP.__callback.selector) {
             /// @dev ethers.js/CCIP reverts if the <result> is not ABI-encoded
             (result, signature) = abi.decode(response[4:], (bytes, bytes));
             /// @notice : check signature format; ?no validity
@@ -300,7 +292,7 @@ contract Resolver is iCCIP, Gateway {
             "INVALID_CHECKSUM"
         );
         /// JSON data: MUST be ABI-encoded
-        return response;
+        //return response;
     }
 
     /**
@@ -346,9 +338,9 @@ contract Resolver is iCCIP, Gateway {
     /**
      * @dev to be used in case some non-fungible tokens get locked in the contract
      * @param _token : token address
-     * @param _tokenID : tokenID to release
+     * @param _id : token ID to release
      */
-    function safeWithdraw(address _token, uint256 _tokenID) external {
-        iToken(_token).safeTransferFrom(THIS, owner, _tokenID);
+    function safeWithdraw(address _token, uint256 _id) external {
+        iToken(_token).safeTransferFrom(THIS, owner, _id);
     }
 }
