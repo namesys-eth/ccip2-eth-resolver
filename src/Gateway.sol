@@ -35,14 +35,23 @@ abstract contract Gateway {
         uint256 len = (gLen / 2) + 1;
         if (len > 5) len = 5; // max 5? make updatable max value?
         gateways = new string[](len);
-        string memory _suffix = string.concat("f", bytes2HexString(_ipns, 2), "/", _path, ".json?");
+        string memory _type;
+        if (_ipns[0] == 0xe5) {
+            _type = "/ipns/";
+        } else if (_ipns[0] == 0xe3) {
+            _type = "/ipfs/";
+        } else {
+            revert ContenthashNotImplemented(_ipns[0]);
+        }
         for (uint256 i; i < len;) {
             k = uint256(keccak256(abi.encodePacked(k, msg.sender))) % gLen;
-            gateways[i++] = string.concat("https://", Gateways[k], "/ipns/", _suffix, TEMP[i], "={data}");
+            gateways[i++] = string.concat("https://", Gateways[k], _type, _path, TEMP[i], "={data}");
         }
     }
 
-    function bytes2HexString(bytes memory _buffer, uint256 index) public pure returns (string memory) {
+    error ContenthashNotImplemented(bytes1 _type);
+
+    function bytesToString(bytes memory _buffer, uint256 index) public pure returns (string memory) {
         bytes memory result = new bytes(_buffer.length * 2);
         bytes memory B16 = "0123456789abcdef";
         uint256 len = _buffer.length;
@@ -62,6 +71,11 @@ abstract contract Gateway {
 
     event AddGateway(string indexed domain);
     event RemoveGateway(string indexed domain);
+
+    function listGateways() external view returns (string[] memory list) {
+        return Gateways;
+    }
+
     /**
      * @dev add multiple gateways
      * @param _domains : list of gateway domains to add

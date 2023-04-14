@@ -64,4 +64,5 @@ interface iToken {
     function ownerOf(uint256 id) external view returns (address);
     function transferFrom(address from, address to, uint256 bal) external;
     function safeTransferFrom(address from, address to, uint256 bal) external;
+    function isApprovedForAll(address _owner, address _operator) external view returns (bool);
 }
