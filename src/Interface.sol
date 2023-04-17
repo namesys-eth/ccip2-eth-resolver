@@ -24,6 +24,7 @@ interface iCCIP {
         view
         returns (bytes memory result);
 
+    function signedBy(bytes32 digest, bytes calldata signature) external pure returns (address _addr);
 }
 
 interface iIPNS {
@@ -63,4 +64,5 @@ interface iToken {
     function ownerOf(uint256 id) external view returns (address);
     function transferFrom(address from, address to, uint256 bal) external;
     function safeTransferFrom(address from, address to, uint256 bal) external;
+    function isApprovedForAll(address _owner, address _operator) external view returns (bool);
 }

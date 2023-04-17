@@ -12,12 +12,11 @@ contract ResolverGoerli is Test {
     error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
 
     Resolver public CCIP2;
-    string public chainID;
+    iENS public ENS;
 
     /// @dev : setup
     function setUp() public {
         CCIP2 = new Resolver();
-        chainID = "5";
     }
 
     /// @dev : DNS Decoder
