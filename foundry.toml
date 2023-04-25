@@ -11,3 +11,6 @@ viaIR = true
 optimizer_runs = 999
 gas_reports = ["*"]
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
+
+# Dangerous, don't trust
+ffi = true

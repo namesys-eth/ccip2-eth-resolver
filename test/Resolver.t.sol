@@ -3,6 +3,7 @@ pragma solidity ^0.8.15;
 
 import "forge-std/Test.sol";
 import "src/Resolver.sol";
+import {Surl} from "surl/src/Surl.sol";
 
 /**
  * @author 0xc0de4c0ffee, sshmatrix
@@ -17,9 +18,12 @@ contract ResolverGoerli is Test {
     /// @dev : setup
     function setUp() public {
         CCIP2 = new Resolver();
+        //(uint256 status, bytes memory data) = "https://httpbin.org/get".get();
     }
 
+    using Surl for *;
     /// @dev : DNS Decoder
+
     function DNSDecode(bytes calldata encoded) public pure returns (string memory _name, bytes32 namehash) {
         uint256 j;
         uint256 len;
