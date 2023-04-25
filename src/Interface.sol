@@ -38,7 +38,7 @@ interface iResolver {
 
     function pubkey(bytes32 node) external view returns (bytes32 x, bytes32 y);
 
-    function text(bytes32 node, string calldata key) external view returns (string memory);
+    function text(bytes32 node, string calldata key) external view returns (string memory value);
 
     function name(bytes32 node) external view returns (string memory);
 
