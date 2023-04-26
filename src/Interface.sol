@@ -11,9 +11,12 @@ interface iENS {
     function ttl(bytes32 node) external view returns (uint64);
     function recordExists(bytes32 node) external view returns (bool);
     function isApprovedForAll(address owner, address operator) external view returns (bool);
+}
 
+interface xENS is iENS {
     // write function used only for test/deploy
     function setResolver(bytes32 node, address resolver) external;
+    function setOwner(bytes32 node, address owner) external;
 }
 
 interface iCCIP {
@@ -65,4 +68,9 @@ interface iToken {
     function transferFrom(address from, address to, uint256 bal) external;
     function safeTransferFrom(address from, address to, uint256 bal) external;
     function isApprovedForAll(address _owner, address _operator) external view returns (bool);
+
+    event Approval(address indexed _owner, address indexed _approved, uint256 indexed _tokenId);
+    event ApprovalForAll(address indexed _owner, address indexed _operator, bool _approved);
+
+    function setApprovalForAll(address _operator, bool _approved) external;
 }
