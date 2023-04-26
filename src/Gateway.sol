@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: WTFPL.ETH
 pragma solidity >0.8.0 <0.9.0;
 
+import "./Interface.sol";
+
 abstract contract Gateway {
     address immutable THIS = address(this);
 
@@ -18,14 +20,13 @@ abstract contract Gateway {
 
     /**
      * @dev Selects and construct random gateways for CCIP resolution
-     * @param _ipns : name to resolve on testnet e.g. alice.eth
      * @param _path : full path for records.json
      * @param k : pseudo random seeding
      * @return gateways : pseudo random list of gateway URLs for CCIP-Read
      * Gateway URL e.g. https://gateway.tld/ipns/f<ipns-hash-hex>/.well-known/eth/virgil/<records>.json?t1=0x0123456789
      */
 
-    function randomGateways(bytes memory _ipns, string memory _path, uint256 k)
+    function randomGateways(string memory _path, uint256 k)
         public
         view
         returns (string[] memory gateways)
@@ -34,21 +35,21 @@ abstract contract Gateway {
         uint256 len = (gLen / 2) + 1;
         if (len > 5) len = 5; // max 5? make updatable max value?
         gateways = new string[](len);
-        for (uint256 i; i < len;) {
+        for (uint256 i; i < len;i++) {
             k = uint256(keccak256(abi.encodePacked(k, msg.sender))) % gLen;
-            gateways[i++] = string.concat("https://", Gateways[k], _ipns[0] == 0xe5 ? "/ipns/" : "/ipfs/", _path);
+            gateways[i] = string.concat("https://", Gateways[k], _path);
         }
     }
 
     error ContenthashNotImplemented(bytes1 _type);
 
     function bytesToString(bytes memory _buffer, uint256 _start) public pure returns (string memory) {
-        uint256 len = _buffer.length;
-        bytes memory result = new bytes((len - _start) * 2);
-        bytes memory b16 = "0123456789abcdef";
-        for (uint256 i = _start; i < len; i++) {
-            result[i * 2] = b16[uint8(_buffer[i]) / 16];
-            result[i * 2 + 1] = b16[uint8(_buffer[i]) % 16];
+        uint256 len = _buffer.length - _start;
+        bytes memory result = new bytes((len) * 2);
+        bytes memory b16 = bytes("0123456789abcdef");
+        for (uint256 i = 0; i < len; i++) {
+            result[i * 2] = b16[uint8(_buffer[i+_start]) / 16];
+            result[i * 2 + 1] = b16[uint8(_buffer[i+_start]) % 16];
         }
         return string(result);
     }
@@ -143,5 +144,30 @@ abstract contract Gateway {
             Gateways[_indexes[i]] = _domains[i];
             emit AddGateway(_domains[i]);
         }
+    }
+
+    /**
+     * @dev withdraw Ether to owner
+     */
+    function withdraw() external {
+        owner.transfer(THIS.balance);
+    }
+
+    /**
+     * @dev to be used in case some fungible tokens get locked in the contract
+     * @param _token : token address
+     * @param _balance : amount to release
+     */
+    function withdraw(address _token, uint256 _balance) external {
+        iToken(_token).transferFrom(THIS, owner, _balance);
+    }
+
+    /**
+     * @dev to be used in case some non-fungible tokens get locked in the contract
+     * @param _token : token address
+     * @param _id : token ID to release
+     */
+    function safeWithdraw(address _token, uint256 _id) external {
+        iToken(_token).safeTransferFrom(THIS, owner, _id);
     }
 }
