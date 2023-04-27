@@ -275,11 +275,12 @@ contract Resolver is iCCIP, Gateway {
                 && _checkHash == keccak256(abi.encodePacked(THIS, blockhash(_blocknumber), msg.sender, _domain, _jsonPath)),
             "INVALID_CHECKSUM/TIMEOUT"
         );
-        //if (bytes4(response[:4]) == iCCIP.__callback.selector) {
-        /// @dev ethers.js/CCIP reverts if the <result> is not ABI-encoded
+        if (bytes4(response[:4]) != iCCIP.__callback.selector){
+            revert InvalidSignature("BAD_PREFIX");
+        }
         address _signer;
         bytes memory signature;
-        (_signer, signature, result) = abi.decode(response, (address, bytes, bytes));
+        (_signer, signature, result) = abi.decode(response[4:], (address, bytes, bytes));
         string memory _req = string.concat(
             "Requesting signature for off-chain ENS record\n",
             //"\nIMPORTANT: Please verify the integrity and authenticity of connected Off-chain ENS Records Manager before signing this message\n",
