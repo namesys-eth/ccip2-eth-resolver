@@ -48,7 +48,10 @@ contract Resolver is iCCIP, Gateway {
         bytes _extradata // callback extra data
     );
 
-    error InvalidSignature(string _error);
+    error InvalidSignature(string _message);
+    error NotAuthorized(bytes32 _node, address _addr);
+    error ContenthashNotSet(bytes32 _node);
+    error ResolverFunctionNotImplemented(bytes4 func);
 
     /// @dev Resolver function bytes4 selector → Off-chain record filename <name>.json
     mapping(bytes4 => string) public funcToFile;
@@ -142,8 +145,6 @@ contract Resolver is iCCIP, Gateway {
         );
     }
 
-    error NotAuthorized(bytes32 _node, address _addr);
-
     modifier isAuthorized(bytes32 _node) {
         address _owner = ENS.owner(_node);
         if (isWrapper[_owner]) {
@@ -168,7 +169,6 @@ contract Resolver is iCCIP, Gateway {
         // event
     }
 
-    error ContenthashNotSet(bytes32 _node);
     /**
      * @dev core Resolve function
      * @param name : ENS name to resolve, DNS encoded
@@ -177,82 +177,84 @@ contract Resolver is iCCIP, Gateway {
      */
 
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
-        // unchecked {
-        uint256 index = 1; // domain level index
-        uint256 n = 1; // counter
-        uint256 len = uint8(bytes1(name[:1])); // length of label
-        bytes[] memory _labels = new bytes[](42); // maximum *in theory* 42 levels of sub.sub...domain.eth
-        _labels[0] = name[1:n += len];
-        string memory _path = string(_labels[0]); // suffix after '/.well-known/'
-        string memory _domain = _path; // full domain as string
-        /// @dev DNSDecode()
-        while (name[n] > 0x0) {
-            len = uint8(bytes1(name[n:++n]));
-            _labels[index] = name[n:n += len];
-            _domain = string.concat(_domain, ".", string(_labels[index]));
-            _path = string.concat(string(_labels[index]), "/", _path);
-            ++index;
-        }
-        /// @dev : supports all domain.tlds in ENS
-        // bool dotETH = (keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[index - 1]))) == roothash)
-
-        bytes32 _namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(bytes(_labels[--index]))));
-        bytes32 _node; // = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_labels[index]))));
-        bytes memory _ipns; // = contenthash[_node]; // contenthash
-        while (index > 0) {
-            _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_labels[--index]))));
-            if (contenthash[_namehash].length > 0) {
-                //|| ENS.resolver(_namehash) == THIS // recheck logic
-                _ipns = contenthash[_namehash];
-                _node = _namehash;
+        unchecked {
+            uint256 index = 1;
+            uint256 n = 1;
+            uint256 len = uint8(bytes1(name[:1]));
+            bytes[] memory _labels = new bytes[](42);
+            _labels[0] = name[1:n += len];
+            string memory _path = string(_labels[0]);
+            string memory _domain = _path;
+            while (name[n] > 0x0) {
+                len = uint8(bytes1(name[n:++n]));
+                _labels[index] = name[n:n += len];
+                _domain = string.concat(_domain, ".", string(_labels[index]));
+                _path = string.concat(string(_labels[index]), "/", _path);
+                ++index;
             }
-        }
 
-        /// @dev : sanity check ENSIP10 client
-        // require(_namehash == bytes32(data[4:36]), "BAD_NAMEHASH");
+            //bool dotETH = (keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[index - 1]))) == roothash);
 
-        bytes4 func = bytes4(data[:4]);
-        string memory _jsonPath;
-        if (bytes(funcToFile[func]).length > 0) {
-            _jsonPath = funcToFile[func];
-        } else if (func == iResolver.text.selector) {
-            _jsonPath = abi.decode(data[36:], (string));
-        } else if (func == iOverloadResolver.addr.selector) {
-            _jsonPath = string.concat("_address/", uintToString(abi.decode(data[36:], (uint256))));
-        } else if (func == iResolver.interfaceImplementer.selector) {
-            _jsonPath =
-                string.concat("_interface/0x", bytesToString(abi.encodePacked(abi.decode(data[36:], (bytes4))), 0));
-        } else if (func == iResolver.ABI.selector) {
-            _jsonPath = string.concat("_abi/", uintToString(abi.decode(data[36:], (uint256))));
-        } else if (func == iResolver.dnsRecord.selector) {
-            /// @dev : TODO, use latest ENS codes/ENSIP for DNS records
-            (bytes32 _name, uint16 resource) = abi.decode(data[36:], (bytes32, uint16));
-            _jsonPath = string.concat("_dns/0x", bytesToString(abi.encodePacked(_name), 0), "/", uintToString(resource));
-        } else {
-            revert ResolverFunctionNotImplemented(func);
+            bytes32 _namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(bytes(_labels[--index]))));
+            bytes32 _node;
+            bytes memory _ipns;
+            while (index > 0) {
+                _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_labels[--index]))));
+                if (contenthash[_namehash].length > 0) {
+                    _ipns = contenthash[_namehash];
+                    _node = _namehash;
+                }
+            }
+
+            // require(_namehash == bytes32(data[4:36]), "BAD_NAMEHASH");
+
+            bytes4 func = bytes4(data[:4]);
+            string memory _jsonPath;
+            if (bytes(funcToFile[func]).length > 0) {
+                _jsonPath = funcToFile[func];
+            } else if (func == iResolver.text.selector) {
+                _jsonPath = abi.decode(data[36:], (string));
+            } else if (func == iOverloadResolver.addr.selector) {
+                _jsonPath = string.concat("_address/", uintToString(abi.decode(data[36:], (uint256))));
+            } else if (func == iResolver.interfaceImplementer.selector) {
+                _jsonPath =
+                    string.concat("_interface/0x", bytesToString(abi.encodePacked(abi.decode(data[36:], (bytes4))), 0));
+            } else if (func == iResolver.ABI.selector) {
+                _jsonPath = string.concat("_abi/", uintToString(abi.decode(data[36:], (uint256))));
+            } else if (func == iResolver.dnsRecord.selector) {
+                /// @dev : TODO, use latest ENS codes/ENSIP for DNS records
+                (bytes32 _name, uint16 resource) = abi.decode(data[36:], (bytes32, uint16));
+                _jsonPath =
+                    string.concat("_dns/0x", bytesToString(abi.encodePacked(_name), 0), "/", uintToString(resource));
+            } else {
+                revert ResolverFunctionNotImplemented(func);
+            }
+            if (_ipns.length == 0) {
+                revert ContenthashNotSet(_namehash);
+            }
+            bytes32 _checkHash =
+                keccak256(abi.encodePacked(THIS, blockhash(block.number - 1), msg.sender, _domain, _jsonPath));
+            revert OffchainLookup(
+                THIS,
+                randomGateways(
+                    string.concat(
+                        _ipns[0] == 0xe5 ? "/ipns/f" : "/ipfs/f",
+                        bytesToString(_ipns, 2),
+                        "/.well-known/",
+                        _path,
+                        "/",
+                        _jsonPath,
+                        ".json?t={data}"
+                    ),
+                    uint256(_checkHash)
+                ),
+                abi.encodePacked(uint64(block.timestamp / 60) * 60),
+                iCCIP.__callback.selector,
+                abi.encode(block.number - 1, _node, _checkHash, _domain, _jsonPath)
+            );
         }
-        if (_ipns.length == 0) {
-            _ipns = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
-            //revert ContenthashNotSet(_namehash);
-        }
-        n = block.number - 1;
-        
-        bytes32 _checkHash = keccak256(abi.encodePacked(THIS, blockhash(n), msg.sender, _domain, _jsonPath));
-        revert OffchainLookup(
-            THIS,
-            randomGateways(
-                string.concat(_ipns[0] == 0xe5 ? "/ipns/f" : "/ipfs/f", bytesToString(_ipns, 2), "/.well-known/", _path, "/", _jsonPath, ".json?t={data}"),
-                uint256(_checkHash)
-            ),
-            abi.encodePacked(uint64(block.timestamp / 60) * 60),
-            iCCIP.__callback.selector,
-            abi.encode(n, _node, _checkHash, _domain, _jsonPath)
-        );
-        //}
     }
-    // 0x0563636970320365746800, 0x3b3b57def40ae02defae5c07cf6b377c07a1104225f62bed7b0cde1e04008321aa3f0fe3
 
-    error ResolverFunctionNotImplemented(bytes4 func);
     /**
      * @dev callback function
      * @param response : response of HTTP call
@@ -303,11 +305,6 @@ contract Resolver is iCCIP, Gateway {
             _signer != _owner && !manager[keccak256(abi.encodePacked("manage-one", _node, _owner, _signer))]
                 && !manager[keccak256(abi.encodePacked("manage-all", _owner, _signer))]
         ) revert NotAuthorized(_node, _signer);
-        //} else {
-        /// TODO : make a list of $$/interface related records that MUST always be signed/eg, addr, contenthash
-        /// OR disable ALL plaintext records as attackers on gateways can bypass records using plaintext.
-        //    result = response;
-        //}
     }
 
     /**

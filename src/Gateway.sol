@@ -26,16 +26,12 @@ abstract contract Gateway {
      * Gateway URL e.g. https://gateway.tld/ipns/f<ipns-hash-hex>/.well-known/eth/virgil/<records>.json?t1=0x0123456789
      */
 
-    function randomGateways(string memory _path, uint256 k)
-        public
-        view
-        returns (string[] memory gateways)
-    {
+    function randomGateways(string memory _path, uint256 k) public view returns (string[] memory gateways) {
         uint256 gLen = Gateways.length;
         uint256 len = (gLen / 2) + 1;
         if (len > 5) len = 5; // max 5? make updatable max value?
         gateways = new string[](len);
-        for (uint256 i; i < len;i++) {
+        for (uint256 i; i < len; i++) {
             k = uint256(keccak256(abi.encodePacked(k, msg.sender))) % gLen;
             gateways[i] = string.concat("https://", Gateways[k], _path);
         }
@@ -47,9 +43,11 @@ abstract contract Gateway {
         uint256 len = _buffer.length - _start;
         bytes memory result = new bytes((len) * 2);
         bytes memory b16 = bytes("0123456789abcdef");
+        uint8 _b;
         for (uint256 i = 0; i < len; i++) {
-            result[i * 2] = b16[uint8(_buffer[i+_start]) / 16];
-            result[i * 2 + 1] = b16[uint8(_buffer[i+_start]) % 16];
+            _b = uint8(_buffer[i + _start]);
+            result[i * 2] = b16[_b / 16];
+            result[i * 2 + 1] = b16[_b % 16];
         }
         return string(result);
     }

@@ -49,12 +49,34 @@ contract ResolverGoerli is Test {
         console.logAddress(_addr);
         vm.prank(_addr);
         ENS.setOwner(_namehash, address(this));
-        resolver.setContenthash(
-            _namehash, hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c"
-        );
-        console.logAddress(ENS.owner(_namehash));
+        bytes memory _ipns = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
+        resolver.setContenthash(_namehash, _ipns);
         (string memory _path, string memory _domain) = Utils(address(utils)).Format(_encoded);
         bytes memory _request = abi.encodeWithSelector(iResolver.addr.selector, _namehash);
+        bytes32 _checkHash = keccak256(
+            abi.encodePacked(
+                address(resolver), blockhash(block.number - 1), address(this), _domain, string("_address/60")
+            )
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ResolverGoerli.OffchainLookup.selector,
+                address(resolver),
+                resolver.randomGateways(
+                    string.concat(
+                        "/ipns/f",
+                        resolver.bytesToString(_ipns, 2),
+                        "/.well-known/",
+                        _path,
+                        "/_address/60.json?t={data}"
+                    ),
+                    uint256(_checkHash)
+                ),
+                abi.encodePacked(uint64(block.timestamp / 60) * 60),
+                resolver.__callback.selector,
+                abi.encode(block.number - 1, _namehash, _checkHash, _domain, string("_address/60"))
+            )
+        );
         resolver.resolve(_encoded, _request);
     }
 
