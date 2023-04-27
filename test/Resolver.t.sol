@@ -3,86 +3,83 @@ pragma solidity ^0.8.15;
 
 import "forge-std/Test.sol";
 import "src/Resolver.sol";
-
+import {Surl} from "surl/src/Surl.sol";
+import "./Utils.sol";
 /**
  * @author 0xc0de4c0ffee, sshmatrix
- * @title CCIP2.ETH Resolver tester
+ * @title CCIP2.eth Resolver tester
  */
+
 contract ResolverGoerli is Test {
     error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
 
-    Resolver public CCIP2;
-    iENS public ENS;
+    Resolver public resolver;
+    xENS public ENS = xENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
 
+    Utils public utils = new Utils();
     /// @dev : setup
+
     function setUp() public {
-        CCIP2 = new Resolver();
+        resolver = new Resolver();
+        //(uint256 status, bytes memory data) = "https://httpbin.org/get".get();
     }
 
-    /// @dev : DNS Decoder
-    function DNSDecode(bytes calldata encoded) public pure returns (string memory _name, bytes32 namehash) {
-        uint256 j;
-        uint256 len;
-        bytes[] memory labels = new bytes[](12); // max 11 ...bob.alice.istest.eth
-        for (uint256 i; encoded[i] > 0x0;) {
-            len = uint8(bytes1(encoded[i:++i]));
-            labels[j] = encoded[i:i += len];
-            j++;
-        }
-        _name = string(labels[--j]); // 'eth' label
-        // pop 'istest' label
-        namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(labels[j--]))); // namehash of 'eth'
-        if (j == 0) {
-            // istest.eth
-            return (
-                string.concat(string(labels[0]), ".", _name),
-                keccak256(abi.encodePacked(namehash, keccak256(labels[0])))
-            );
-        }
-
-        while (j > 0) {
-            // return ...bob.alice.eth
-            _name = string.concat(string(labels[--j]), ".", _name); // pop 'istest' label
-            namehash = keccak256(abi.encodePacked(namehash, keccak256(labels[j]))); // namehash without 'istest' label
-        }
-    }
-
-    /// @dev : DNS Encoder
-    function DNSEncode(bytes memory _domain) internal pure returns (bytes memory _name, bytes32 _namehash) {
-        uint256 i = _domain.length;
-        _name = abi.encodePacked(bytes1(0));
-        bytes memory _label;
-        _namehash = bytes32(0);
-        unchecked {
-            while (i > 0) {
-                --i;
-                if (_domain[i] == bytes1(".")) {
-                    _name = bytes.concat(bytes1(uint8(_label.length)), _label, _name);
-                    _namehash = keccak256(abi.encodePacked(_namehash, keccak256(_label)));
-                    _label = "";
-                } else {
-                    _label = bytes.concat(_domain[i], _label);
-                }
-            }
-            _name = bytes.concat(bytes1(uint8(_label.length)), _label, _name);
-            _namehash = keccak256(abi.encodePacked(_namehash, keccak256(_label)));
-        }
-    }
+    using Surl for *;
 
     /// @dev : get some values
-    function testConstants() public view {
-        bytes memory _src = "vitalik.eth";
-        (bytes memory _name,) = DNSEncode(_src);
-        console.logBytes(_name);
-        bytes memory _test = "vitalik.ccip2.eth";
-        (, bytes32 _namehash) = DNSEncode(_test);
-        console.logBytes32(_namehash);
-        console.logBytes4(CCIP2.resolve.selector);
+    function testSanityUtils() public {
+        bytes[] memory _name = new bytes[](2);
+        _name[0] = "virgil";
+        _name[1] = "eth";
+        (bytes32 _namehash, bytes memory _encoded) = utils.Encode(_name);
+        (string memory _path, string memory _domain) = Utils(address(utils)).Format(_encoded);
+        assertEq(_encoded, bytes.concat(bytes1(uint8(6)), "virgil", bytes1(uint8(3)), "eth", bytes1(0)));
+        assertEq(_namehash, bytes32(0x2abe74dc42b79fff0accc104dbf6ef6f150d5eb4ba14cdae4a404eb7890d2e19));
+        assertEq(_path, string("eth/virgil"));
+        assertEq(_domain, string("virgil.eth"));
     }
 
     /// @dev : test CCIP-Read call
-    function testCCIPRevert() public {}
+    function testResolve1() public {
+        bytes[] memory _name = new bytes[](2);
+        _name[0] = "ccip2";
+        _name[1] = "eth";
+        (bytes32 _namehash, bytes memory _encoded) = utils.Encode(_name);
+        address _addr = ENS.owner(_namehash);
+        console.logAddress(_addr);
+        vm.prank(_addr);
+        ENS.setOwner(_namehash, address(this));
+        bytes memory _ipns = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
+        resolver.setContenthash(_namehash, _ipns);
+        (string memory _path, string memory _domain) = Utils(address(utils)).Format(_encoded);
+        bytes memory _request = abi.encodeWithSelector(iResolver.addr.selector, _namehash);
+        bytes32 _checkHash = keccak256(
+            abi.encodePacked(
+                address(resolver), blockhash(block.number - 1), address(this), _domain, string("_address/60")
+            )
+        );
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ResolverGoerli.OffchainLookup.selector,
+                address(resolver),
+                resolver.randomGateways(
+                    string.concat(
+                        "/ipns/f",
+                        resolver.bytesToString(_ipns, 2),
+                        "/.well-known/",
+                        _path,
+                        "/_address/60.json?t={data}"
+                    ),
+                    uint256(_checkHash)
+                ),
+                abi.encodePacked(uint64(block.timestamp / 60) * 60),
+                resolver.__callback.selector,
+                abi.encode(block.number - 1, _namehash, _checkHash, _domain, string("_address/60"))
+            )
+        );
+        resolver.resolve(_encoded, _request);
+    }
 
-    /// @dev : test full end-to-end CCIP2
+    /// @dev : test full end-to-end resolver
     function testCCIPCallback() public {}
 }
