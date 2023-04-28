@@ -70,7 +70,7 @@ contract ResolverGoerli is Test {
                         resolver.bytesToString(_ipns, 2),
                         "/.well-known/",
                         _path,
-                        "/_address/60.json?t={data}"
+                        "/_address/60.json?t={data}&format=dag-json"
                     ),
                     uint256(_checkHash)
                 ),
@@ -105,7 +105,7 @@ contract ResolverGoerli is Test {
                 address(resolver),
                 resolver.randomGateways(
                     string.concat(
-                        "/ipns/f", resolver.bytesToString(_ipns, 2), "/.well-known/", _path, "/avatar.json?t={data}"
+                        "/ipns/f", resolver.bytesToString(_ipns, 2), "/.well-known/", _path, "/avatar.json?t={data}&format=dag-json"
                     ),
                     uint256(_checkHash)
                 ),
@@ -150,7 +150,7 @@ contract ResolverGoerli is Test {
                 address(resolver),
                 resolver.randomGateways(
                     string.concat(
-                        "/ipns/f", resolver.bytesToString(_ipns, 2), "/.well-known/", _path, "/showcase.json?t={data}"
+                        "/ipns/f", resolver.bytesToString(_ipns, 2), "/.well-known/", _path, "/showcase.json?t={data}&format=dag-json"
                     ),
                     uint256(_checkHash)
                 ),
@@ -195,7 +195,7 @@ contract ResolverGoerli is Test {
                         resolver.bytesToString(_ipns, 2),
                         "/.well-known/",
                         _path,
-                        "/_address/60.json?t={data}"
+                        "/_address/60.json?t={data}&format=dag-json"
                     ),
                     uint256(_checkHash)
                 ),

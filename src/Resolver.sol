@@ -295,7 +295,7 @@ contract Resolver is iCCIP, Gateway {
                         _path,
                         "/",
                         _jsonPath,
-                        ".json?t={data}"
+                        ".json?t={data}&format=dag-json"
                     ),
                     uint256(_checkHash)
                 ),
