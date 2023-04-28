@@ -3,13 +3,12 @@ pragma solidity ^0.8.15;
 
 contract Utils {
     function Format(bytes calldata _encoded) external pure returns (string memory _path, string memory _domain) {
-        uint256 n = 1; // counter
-        uint256 len = uint8(bytes1(_encoded[:1])); // length of label
-        bytes memory _label; // = new bytes[](42); // maximum *in theory* 42 levels of sub.sub...domain.eth
+        uint256 n = 1;
+        uint256 len = uint8(bytes1(_encoded[:1]));
+        bytes memory _label;
         _label = _encoded[1:n += len];
-        _path = string(_label); //"sub"
-        _domain = _path; // "sub"
-        /// @dev DNSDecode()
+        _path = string(_label);
+        _domain = _path;
         while (_encoded[n] > 0x0) {
             len = uint8(bytes1(_encoded[n:++n]));
             _label = _encoded[n:n += len];
@@ -29,5 +28,9 @@ contract Utils {
                 _namehash = keccak256(abi.encodePacked(_namehash, keccak256(_names[i])));
             }
         }
+    }
+
+    function chunk(bytes calldata _b, uint256 _start, uint256 _end) external pure returns (bytes memory) {
+        return _b[_start:_end == 0 ? _b.length : _end];
     }
 }
