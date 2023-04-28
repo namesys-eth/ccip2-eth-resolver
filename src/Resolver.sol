@@ -33,10 +33,14 @@ contract Resolver is iCCIP, Gateway {
 
         Gateways.push("dweb.link");
         emit AddGateway("dweb.link");
-        //Gateways.push("ipfs.io");
-        //emit AddGateway("ipfs.io");
+        Gateways.push("ipfs.io");
+        emit AddGateway("ipfs.io");
+
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
         emit UpdateWrapper(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401, true);
+
+        isWrapper[0x114D4603199df73e7D157787f8778E21fCd13066] = true; // goerli
+        emit UpdateWrapper(0x114D4603199df73e7D157787f8778E21fCd13066, true);
     }
 
     /// @dev ENSIP10 : CCIP-read Off-chain Lookup method (https://eips.ethereum.org/EIPS/eip-3668)
@@ -72,7 +76,7 @@ contract Resolver is iCCIP, Gateway {
     event Approved(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
 
     /**
-     * @dev See {IERC1155-isApprovedForAll}.
+     * @dev isApprovedForAll
      */
     function isApprovedForAll(address _owner, address _signer) public view returns (bool) {
         return manager[keccak256(abi.encodePacked("manage-all", _owner, _signer))];
@@ -92,13 +96,18 @@ contract Resolver is iCCIP, Gateway {
     function isApprovedFor(address _owner, bytes32 _node, address _signer) public view returns (bool) {
         return manager[keccak256(abi.encodePacked("manage-one", _node, _owner, _signer))];
     }
+    /**
+     * Check if _signer is approved to manage _node records
+     * @param _node : namehash of node
+     * @param _signer : address of manager
+     */
 
     function approved(bytes32 _node, address _signer) public view returns (bool) {
         address _owner = ENS.owner(_node);
         if (isWrapper[_owner]) {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
-        return manager[keccak256(abi.encodePacked("manage-one", _node, _owner, _signer))]
+        return _owner == _signer || manager[keccak256(abi.encodePacked("manage-one", _node, _owner, _signer))]
             || manager[keccak256(abi.encodePacked("manage-all", _owner, _signer))];
     }
 
@@ -116,12 +125,18 @@ contract Resolver is iCCIP, Gateway {
         bytes32 s;
         uint8 v;
         if (signature.length == 64) {
+            // compact bytes32 *2
             bytes32 vs = bytes32(signature[32:]);
             s = vs & bytes32(0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF);
             v = uint8((uint256(vs) >> 255) + 27);
         } else if (signature.length == 65) {
+            // packed bytes32 * 2 + uint8
             s = bytes32(signature[32:64]);
             v = uint8(bytes1(signature[64:]));
+        } else if (signature.length == 96) {
+            // longest bytes32 * 3
+            s = bytes32(signature[32:64]);
+            v = uint8(uint256(bytes32(signature[64:])));
         } else {
             revert InvalidSignature("BAD_SIG_LENGTH");
         }
@@ -164,9 +179,33 @@ contract Resolver is iCCIP, Gateway {
      */
 
     function setContenthash(bytes32 _node, bytes calldata _contenthash) external isAuthorized(_node) {
-        require(bytes4(_contenthash[:4]) == hex"e5010172" || bytes3(_contenthash[:3]) == hex"e30101", "IPFS/IPNS_ONLY");
+        //require(bytes4(_contenthash[:4]) == hex"e5010172" || bytes3(_contenthash[:3]) == hex"e30101", "IPFS/IPNS_ONLY");
         contenthash[_node] = _contenthash;
-        // event
+        emit ContenthashChanged(_node, _contenthash);
+    }
+
+    event ContenthashChanged(bytes32 indexed _node, bytes _contenthash);
+    /**
+     * Setup IPNS contenthash and manager address in same tx
+     * @param _node : namehash of node
+     * @param _manager : manager address
+     * @param _ipns : ipns contenthash
+     */
+
+    function fastSetup(bytes32 _node, address _manager, bytes calldata _ipns) external {
+        //require(bytes4(_ipns[:4]) == hex"e5010172" || bytes3(_ipns[:3]) == hex"e30101", "IPFS/IPNS_ONLY");
+        address _owner = ENS.owner(_node);
+        if (isWrapper[_owner]) {
+            _owner = iToken(_owner).ownerOf(uint256(_node));
+        }
+        if (msg.sender != _owner && !manager[keccak256(abi.encodePacked("manage-all", _owner, msg.sender))]) {
+            revert NotAuthorized(_node, msg.sender);
+        }
+
+        contenthash[_node] = _ipns;
+        emit ContenthashChanged(_node, _ipns);
+        manager[keccak256(abi.encodePacked("manage-one", _node, _owner, _manager))] = true;
+        emit Approved(msg.sender, _node, _manager, true);
     }
 
     /**
@@ -206,7 +245,11 @@ contract Resolver is iCCIP, Gateway {
                 }
             }
 
-            // require(_namehash == bytes32(data[4:36]), "BAD_NAMEHASH");
+            require(_namehash == bytes32(data[4:36]), "BAD_NAMEHASH");
+
+            if (_ipns.length == 0) {
+                revert ContenthashNotSet(_namehash);
+            }
 
             bytes4 func = bytes4(data[:4]);
             string memory _jsonPath;
@@ -228,9 +271,6 @@ contract Resolver is iCCIP, Gateway {
                     string.concat("_dns/0x", bytesToString(abi.encodePacked(_name), 0), "/", uintToString(resource));
             } else {
                 revert ResolverFunctionNotImplemented(func);
-            }
-            if (_ipns.length == 0) {
-                revert ContenthashNotSet(_namehash);
             }
             bytes32 _checkHash =
                 keccak256(abi.encodePacked(THIS, blockhash(block.number - 1), msg.sender, _domain, _jsonPath));
@@ -275,7 +315,7 @@ contract Resolver is iCCIP, Gateway {
                 && _checkHash == keccak256(abi.encodePacked(THIS, blockhash(_blocknumber), msg.sender, _domain, _jsonPath)),
             "INVALID_CHECKSUM/TIMEOUT"
         );
-        if (bytes4(response[:4]) != iCCIP.__callback.selector){
+        if (bytes4(response[:4]) != iCCIP.__callback.selector) {
             revert InvalidSignature("BAD_PREFIX");
         }
         address _signer;
