@@ -12,7 +12,7 @@ contract Resolver is iCCIP, Gateway {
     /// TODO : Remove before mainnet deployment
     function immolate() external {
         require(msg.sender == owner, "NOT_OWNER");
-        selfdestruct(owner);
+        selfdestruct(payable(owner));
     }
 
     /// @dev : ENS contract
@@ -58,7 +58,7 @@ contract Resolver is iCCIP, Gateway {
     error ResolverFunctionNotImplemented(bytes4 func);
 
     /// @dev Resolver function bytes4 selector → Off-chain record filename <name>.json
-    mapping(bytes4 => string) public funcToFile;
+    mapping(bytes4 => string) public funcToFile; // setter function?
     /// Other Mappings
     mapping(bytes32 => bytes) public contenthash; // contenthash; use IPNS for gasless dynamic record updates, or IPFS for static hosting
     mapping(bytes32 => bool) public manager; // ?? there are multiple approved/isApprovedForAll in all ENS
@@ -155,8 +155,8 @@ contract Resolver is iCCIP, Gateway {
      */
     function supportsInterface(bytes4 interfaceID) external pure returns (bool) {
         return (
-            interfaceID == iCCIP.resolve.selector || interfaceID == iResolver.setContenthash.selector
-                || interfaceID == iCCIP.__callback.selector || interfaceID == iERC165.supportsInterface.selector
+            interfaceID == iCCIP.resolve.selector || interfaceID == iResolver.setContenthash.selector 
+            || interfaceID == type(iERC173).interfaceId || interfaceID == iCCIP.__callback.selector || interfaceID == iERC165.supportsInterface.selector
         );
     }
 
@@ -407,5 +407,10 @@ contract Resolver is iCCIP, Gateway {
             isWrapper[_addrs[i]] = _sets[i];
             emit UpdateWrapper(_addrs[i], _sets[i]);
         }
+    }
+    event UpdateFuncFile(bytes4 _func, string _name);
+    function addFuncMap(bytes4 _func, string calldata _name) external onlyDev{
+        funcToFile[_func] = _name;
+        emit UpdateFuncFile(_func, _name);
     }
 }

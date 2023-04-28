@@ -74,3 +74,8 @@ interface iToken {
 
     function setApprovalForAll(address _operator, bool _approved) external;
 }
+interface iERC173 {
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    function owner() view external returns(address);
+    function transferOwnership(address _newOwner) external;	
+}

@@ -3,11 +3,11 @@ pragma solidity >0.8.0 <0.9.0;
 
 import "./Interface.sol";
 
-abstract contract Gateway {
+abstract contract Gateway is iERC173{
     address immutable THIS = address(this);
 
     /// @dev : contract owner/multisig address
-    address payable public owner;
+    address public owner;
 
     /// @dev : list of gateway domain
     string[] public Gateways;
@@ -133,12 +133,20 @@ abstract contract Gateway {
             emit AddGateway(_domains[i]);
         }
     }
+    /**
+     * Transfer ownership of resolver contract
+     * @param _newOwner : address of new multisig
+     */
+    function transferOwnership(address _newOwner) external onlyDev{
+        emit OwnershipTransferred(owner, _newOwner);
+        owner = _newOwner;
+    }
 
     /**
      * @dev withdraw Ether to owner
      */
     function withdraw() external {
-        owner.transfer(THIS.balance);
+        payable(owner).transfer(THIS.balance);
     }
 
     /**
