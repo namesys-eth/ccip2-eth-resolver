@@ -15,6 +15,16 @@ contract Resolver is iCCIP, Gateway {
         selfdestruct(payable(owner));
     }
 
+    /// @dev : revert on fallback
+    fallback() external payable {
+        revert();
+    }
+
+    /// @dev : revert on receive
+    receive() external payable {
+        revert();
+    }
+
     /// @dev : ENS contract
     iENS public immutable ENS = iENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
 
@@ -155,8 +165,9 @@ contract Resolver is iCCIP, Gateway {
      */
     function supportsInterface(bytes4 interfaceID) external pure returns (bool) {
         return (
-            interfaceID == iCCIP.resolve.selector || interfaceID == iResolver.setContenthash.selector 
-            || interfaceID == type(iERC173).interfaceId || interfaceID == iCCIP.__callback.selector || interfaceID == iERC165.supportsInterface.selector
+            interfaceID == iCCIP.resolve.selector || interfaceID == iResolver.setContenthash.selector
+                || interfaceID == type(iERC173).interfaceId || interfaceID == iCCIP.__callback.selector
+                || interfaceID == iERC165.supportsInterface.selector
         );
     }
 
@@ -408,8 +419,10 @@ contract Resolver is iCCIP, Gateway {
             emit UpdateWrapper(_addrs[i], _sets[i]);
         }
     }
+
     event UpdateFuncFile(bytes4 _func, string _name);
-    function addFuncMap(bytes4 _func, string calldata _name) external onlyDev{
+
+    function addFuncMap(bytes4 _func, string calldata _name) external onlyDev {
         funcToFile[_func] = _name;
         emit UpdateFuncFile(_func, _name);
     }

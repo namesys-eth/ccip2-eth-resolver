@@ -226,7 +226,8 @@ contract ResolverGoerli is Test {
         assertTrue(resolver.isApprovedFor(address(this), _node, _signer));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(PrivateKey, _digest);
         bytes memory _signature = abi.encodePacked(r, s, v);
-        bytes memory _response = abi.encodePacked(resolver.__callback.selector, abi.encode(_signer, _signature, _result));
+        bytes memory _response =
+            abi.encodePacked(resolver.__callback.selector, abi.encode(_signer, _signature, _result));
         assertEq(_result, resolver.__callback(_response, _extraData));
     }
 }
