@@ -3,17 +3,11 @@ pragma solidity >0.8.0 <0.9.0;
 
 import "./Interface.sol";
 
-abstract contract Gateway {
+abstract contract Gateway is iERC173 {
     address immutable THIS = address(this);
 
     /// @dev : contract owner/multisig address
-    address payable public owner;
-
-    /// @dev : Gateway struct
-    struct Gate {
-        string domain; // "domain.tld" ipfs gateway
-        uint8 _type; // 0 for hash.ipns.gateway.tld, >0 for gateway.tld/ipns/hash
-    }
+    address public owner;
 
     /// @dev : list of gateway domain
     string[] public Gateways;
@@ -29,11 +23,11 @@ abstract contract Gateway {
     function randomGateways(string memory _path, uint256 k) public view returns (string[] memory gateways) {
         uint256 gLen = Gateways.length;
         uint256 len = (gLen / 2) + 1;
-        if (len > 5) len = 5; // max 5? make updatable max value?
+        if (len > 5) len = 5;
         gateways = new string[](len);
         for (uint256 i; i < len; i++) {
-            k = uint256(keccak256(abi.encodePacked(k, msg.sender))) % gLen;
-            gateways[i] = string.concat("https://", Gateways[k], _path);
+            k = uint256(keccak256(abi.encodePacked(k, msg.sender)));
+            gateways[i] = string.concat("https://", Gateways[k % gLen], _path);
         }
     }
 
@@ -96,9 +90,7 @@ abstract contract Gateway {
     function removeGateway(uint256 _index) external onlyDev {
         require(Gateways.length > 1, "Last Gateway");
         emit RemoveGateway(Gateways[_index]);
-        //if (Gateways.length > _index + 1) {
         Gateways[_index] = Gateways[Gateways.length - 1];
-        //}
         Gateways.pop();
     }
 
@@ -111,9 +103,7 @@ abstract contract Gateway {
         require(Gateways.length > len, "Last Gateway");
         for (uint256 i = 0; i < len; i++) {
             emit RemoveGateway(Gateways[_indexes[i]]);
-            //if (Gateways.length > _indexes[i] + 1) {
             Gateways[_indexes[i]] = Gateways[Gateways.length - 1];
-            //}
             Gateways.pop();
         }
     }
@@ -143,12 +133,21 @@ abstract contract Gateway {
             emit AddGateway(_domains[i]);
         }
     }
+    /**
+     * Transfer ownership of resolver contract
+     * @param _newOwner : address of new multisig
+     */
+
+    function transferOwnership(address _newOwner) external onlyDev {
+        emit OwnershipTransferred(owner, _newOwner);
+        owner = _newOwner;
+    }
 
     /**
      * @dev withdraw Ether to owner
      */
     function withdraw() external {
-        owner.transfer(THIS.balance);
+        payable(owner).transfer(THIS.balance);
     }
 
     /**
