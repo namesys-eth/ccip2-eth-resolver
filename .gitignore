@@ -7,3 +7,4 @@ broadcast/*/*/*
 scratch/
 out/*/*
 !out/Resolver.sol/Resolver.json
+docs/

@@ -1,8 +1,15 @@
-//SPDX-License-Identifier: WTFPL v6.9
+//SPDX-License-Identifier: WTFPL.ETH
 pragma solidity >=0.8.4;
 
 interface iERC165 {
     function supportsInterface(bytes4 interfaceID) external view returns (bool);
+}
+
+interface iERC173 {
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    function owner() external view returns (address);
+    function transferOwnership(address _newOwner) external;
 }
 
 interface iENS {
@@ -13,25 +20,22 @@ interface iENS {
     function isApprovedForAll(address owner, address operator) external view returns (bool);
 }
 
-interface xENS is iENS {
-    // write function used only for test/deploy
-    function setResolver(bytes32 node, address resolver) external;
-    function setOwner(bytes32 node, address owner) external;
+interface iENSIP10 {
+    function resolve(bytes memory _name, bytes memory _data) external view returns (bytes memory);
 }
 
-interface iCCIP {
-    function resolve(bytes memory name, bytes memory data) external view returns (bytes memory);
-
-    function __callback(bytes calldata response, bytes calldata extraData)
+interface iCCIP2ETH is iENSIP10 {
+    function __callback(bytes calldata _response, bytes calldata _extraData)
         external
         view
-        returns (bytes memory result);
+        returns (bytes memory _result);
 
-    function signedBy(bytes32 digest, bytes calldata signature) external pure returns (address _addr);
+    function validSignature(address _signer, bytes32 _digest, bytes calldata _signature) external pure returns (bool);
+    function setRecordhash(bytes32 _node, bytes calldata _contenthash) external;
 }
 
 interface iIPNS {
-    function setContenthash(bytes32 node, bytes calldata _ch) external view returns (bytes memory);
+//function setContenthash(bytes32 node, bytes calldata _ch) external view returns (bytes memory);
 }
 
 interface iResolver {
@@ -53,7 +57,9 @@ interface iResolver {
 
     function dnsRecord(bytes32 node, bytes32 name, uint16 resource) external view returns (bytes memory);
 
-    //function recordVersions(bytes32 node) external view returns (uint64);
+    function recordVersions(bytes32 node) external view returns (uint64);
+
+    function approved(bytes32 _node, address _signer) external view returns (bool);
 
     /// @dev : set contenthash
     function setContenthash(bytes32 node, bytes calldata hash) external;
@@ -73,11 +79,4 @@ interface iToken {
     event ApprovalForAll(address indexed _owner, address indexed _operator, bool _approved);
 
     function setApprovalForAll(address _operator, bool _approved) external;
-}
-
-interface iERC173 {
-    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-
-    function owner() external view returns (address);
-    function transferOwnership(address _newOwner) external;
 }

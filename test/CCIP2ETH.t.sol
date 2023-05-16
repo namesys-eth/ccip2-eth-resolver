@@ -2,7 +2,7 @@
 pragma solidity ^0.8.15;
 
 import "forge-std/Test.sol";
-import "src/Resolver.sol";
+import "src/CCIP2ETH.sol";
 /// @notice Explain to an end user what this does
 /// @dev Explain to a developer any extra details
 /// @param Documents a parameter just like in doxygen (must be followed by parameter name)import {Surl} from "surl/src/Surl.sol";
@@ -12,12 +12,18 @@ import "./Utils.sol";
  * @title CCIP2.eth Resolver tester
  */
 
+interface xENS is iENS {
+    // write function used only for test/deploy
+    function setResolver(bytes32 node, address resolver) external;
+    function setOwner(bytes32 node, address owner) external;
+}
+
 contract ResolverGoerli is Test {
     // using Surl for *;
 
     error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
 
-    Resolver public resolver;
+    CCIP2ETH public resolver;
     xENS public ENS = xENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
 
     Utils public utils = new Utils();
@@ -25,7 +31,7 @@ contract ResolverGoerli is Test {
     bytes32 dotETH = keccak256(abi.encodePacked(bytes32(0), keccak256("eth")));
 
     function setUp() public {
-        resolver = new Resolver();
+        resolver = new CCIP2ETH();
         //(uint256 status, bytes memory data) = "https://httpbin.org/get".get();
     }
 
@@ -52,14 +58,11 @@ contract ResolverGoerli is Test {
         vm.prank(_addr);
         ENS.setOwner(_namehash, address(this));
         bytes memory _ipns = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
-        resolver.setContenthash(_namehash, _ipns);
+        resolver.setRecordhash(_namehash, _ipns);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _namehash);
-        bytes32 _checkHash = keccak256(
-            abi.encodePacked(
-                address(resolver), blockhash(block.number - 1), address(this), _domain, string("_address/60")
-            )
-        );
+        bytes32 _checkHash =
+            keccak256(abi.encodePacked(address(resolver), blockhash(block.number - 1), _domain, string("_address/60")));
         vm.expectRevert(
             abi.encodeWithSelector(
                 ResolverGoerli.OffchainLookup.selector,
@@ -93,19 +96,22 @@ contract ResolverGoerli is Test {
         vm.prank(_addr);
         ENS.setOwner(_namehash, address(this));
         bytes memory _ipns = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
-        resolver.setContenthash(_namehash, _ipns);
+        resolver.setRecordhash(_namehash, _ipns);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.text.selector, _namehash, abi.encode(string("avatar")));
-        bytes32 _checkHash = keccak256(
-            abi.encodePacked(address(resolver), blockhash(block.number - 1), address(this), _domain, string("avatar"))
-        );
+        bytes32 _checkHash =
+            keccak256(abi.encodePacked(address(resolver), blockhash(block.number - 1), _domain, string("avatar")));
         vm.expectRevert(
             abi.encodeWithSelector(
                 ResolverGoerli.OffchainLookup.selector,
                 address(resolver),
                 resolver.randomGateways(
                     string.concat(
-                        "/ipns/f", resolver.bytesToString(_ipns, 2), "/.well-known/", _path, "/avatar.json?t={data}&format=dag-json"
+                        "/ipns/f",
+                        resolver.bytesToString(_ipns, 2),
+                        "/.well-known/",
+                        _path,
+                        "/avatar.json?t={data}&format=dag-json"
                     ),
                     uint256(_checkHash)
                 ),
@@ -127,7 +133,7 @@ contract ResolverGoerli is Test {
         vm.prank(_addr);
         ENS.setOwner(_baseNode, address(this)); // owner records at level 2 only
         bytes memory _ipns = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
-        resolver.setContenthash(_baseNode, _ipns);
+        resolver.setRecordhash(_baseNode, _ipns);
 
         bytes[] memory _name = new bytes[](7);
         _name[0] = "sub6";
@@ -141,16 +147,19 @@ contract ResolverGoerli is Test {
         (_namehash, _encoded) = utils.Encode(_name);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.text.selector, _namehash, abi.encode(string("showcase")));
-        bytes32 _checkHash = keccak256(
-            abi.encodePacked(address(resolver), blockhash(block.number - 1), address(this), _domain, string("showcase"))
-        );
+        bytes32 _checkHash =
+            keccak256(abi.encodePacked(address(resolver), blockhash(block.number - 1), _domain, string("showcase")));
         vm.expectRevert(
             abi.encodeWithSelector(
                 ResolverGoerli.OffchainLookup.selector,
                 address(resolver),
                 resolver.randomGateways(
                     string.concat(
-                        "/ipns/f", resolver.bytesToString(_ipns, 2), "/.well-known/", _path, "/showcase.json?t={data}&format=dag-json"
+                        "/ipns/f",
+                        resolver.bytesToString(_ipns, 2),
+                        "/.well-known/",
+                        _path,
+                        "/showcase.json?t={data}&format=dag-json"
                     ),
                     uint256(_checkHash)
                 ),
@@ -179,11 +188,8 @@ contract ResolverGoerli is Test {
 
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _node);
-        bytes32 _checkHash = keccak256(
-            abi.encodePacked(
-                address(resolver), blockhash(block.number - 1), address(this), _domain, string("_address/60")
-            )
-        );
+        bytes32 _checkHash =
+            keccak256(abi.encodePacked(address(resolver), blockhash(block.number - 1), _domain, string("_address/60")));
         bytes memory _extraData = abi.encode(block.number - 1, _node, _checkHash, _domain, string("_address/60"));
         vm.expectRevert(
             abi.encodeWithSelector(
