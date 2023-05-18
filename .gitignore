@@ -2,9 +2,9 @@ cache/
 .env
 */.DS_store
 .DS_store
-broadcast/*/*/*
-!broadcast/*/*/run-latest.json
+broadcast/
 scratch/
-out/*/*
-!out/Resolver.sol/Resolver.json
+out/
 docs/
+node_modules
+lib

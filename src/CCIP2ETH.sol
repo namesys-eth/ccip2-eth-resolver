@@ -7,35 +7,40 @@ import "./Gateway.sol";
  * @author : freetib.eth, sshmatrix.eth
  */
 
-contract CCIP2ETH is iCCIP2ETH, Gateway {
+contract CCIP2ETH is iCCIP2ETH {
     /// @notice : ONLY TESTNET
     /// TODO : Remove before mainnet deployment
     function immolate() external {
-        require(msg.sender == owner, "NOT_OWNER");
-        selfdestruct(payable(owner));
+        address _owner = GATEWAY.owner();
+        require(msg.sender == _owner, "NOT_OWNER");
+        selfdestruct(payable(_owner));
     }
 
     /// @dev : ENS contract
     iENS public immutable ENS = iENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
+    iGateway public GATEWAY; // utils and extra functions
 
     /// @dev : revert on fallback
     fallback() external payable {
         revert();
     }
 
+    event ThankYou(address indexed _addr, uint256 indexed _value);
     /// @dev : revert on receive
+
     receive() external payable {
-        revert();
+        emit ThankYou(msg.sender, msg.value);
     }
 
     string public chainID = "1";
 
     function setChainId() external {
-        chainID = uintToString(block.chainid);
+        chainID = GATEWAY.uintToString(block.chainid);
     }
 
     /// @dev constructor initial setup
     constructor() {
+        GATEWAY = new Gateway();
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
         emit UpdateWrapper(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401, true);
 
@@ -90,44 +95,31 @@ contract CCIP2ETH is iCCIP2ETH, Gateway {
      * @param _contenthash : contenthash to set
      */
 
-    function setRecordhash(bytes32 _node, bytes calldata _contenthash) external isAuthorized(_node) {
+    function setRecordhash(bytes32 _node, bytes calldata _contenthash) external {
         //require(bytes4(_contenthash[:4]) == hex"e5010172" || bytes3(_contenthash[:3]) == hex"e30101", "IPFS/IPNS_ONLY");
+        
+        address _owner = ENS.owner(_node);
+        if (isWrapper[_owner]) {
+            _owner = iToken(_owner).ownerOf(uint256(_node));
+        }
+        if (
+            msg.sender != _owner && !manager[keccak256(abi.encodePacked("manage-one", _node, _owner, msg.sender))]
+                && !manager[keccak256(abi.encodePacked("manage-all", _owner, msg.sender))]
+        ) revert NotAuthorized(_node, msg.sender);
         contenthash[_node] = _contenthash;
         emit ContenthashChanged(_node, _contenthash);
     }
 
     event ContenthashChanged(bytes32 indexed _node, bytes _contenthash);
-    /**
-     * Setup IPNS contenthash and manager address in same tx
-     * @param _node : namehash of node
-     * @param _manager : manager address
-     * @param _ipns : ipns contenthash
-     */
-
-    function fastSetup(bytes32 _node, address _manager, bytes calldata _ipns) external {
-        //require(bytes4(_ipns[:4]) == hex"e5010172" || bytes3(_ipns[:3]) == hex"e30101", "IPFS/IPNS_ONLY");
-        address _owner = ENS.owner(_node);
-        if (isWrapper[_owner]) {
-            _owner = iToken(_owner).ownerOf(uint256(_node));
-        }
-        if (msg.sender != _owner && !manager[keccak256(abi.encodePacked("manage-all", _owner, msg.sender))]) {
-            revert NotAuthorized(_node, msg.sender);
-        }
-
-        contenthash[_node] = _ipns;
-        emit ContenthashChanged(_node, _ipns);
-        manager[keccak256(abi.encodePacked("manage-one", _node, _owner, _manager))] = true;
-        emit Approved(msg.sender, _node, _manager, true);
-    }
 
     /**
      * @dev core Resolve function
-     * @param name : ENS name to resolve, DNS encoded
-     * @param data : data encoding specific resolver function
-     * @return : triggers offchain lookup so return value is never used directly
+     * @param name ENS name to resolve, DNS encoded
+     * @param data data encoding specific resolver function
+     * @return result triggers offchain lookup so return value is never used directly
      */
 
-    function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory) {
+    function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory result) {
         unchecked {
             uint256 index = 1;
             uint256 n = 1;
@@ -140,49 +132,66 @@ contract CCIP2ETH is iCCIP2ETH, Gateway {
                 len = uint8(bytes1(name[n:++n]));
                 _labels[index] = name[n:n += len];
                 _domain = string.concat(_domain, ".", string(_labels[index]));
-                _path = string.concat(string(_labels[index]), "/", _path);
-                ++index;
+                _path = string.concat(string(_labels[index++]), "/", _path);
             }
 
             //bool dotETH = (keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[index - 1]))) == roothash);
 
-            bytes32 _namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(bytes(_labels[--index]))));
+            bytes32 _namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[--index])));
             bytes32 _node;
-            bytes memory _ipns;
+            bytes memory _ipns; // = contenthash[0];
             while (index > 0) {
-                _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_labels[--index]))));
-                if (contenthash[_namehash].length > 0) {
-                    _ipns = contenthash[_namehash];
+                _namehash = keccak256(abi.encodePacked(_namehash, keccak256(_labels[--index])));
+                if (ENS.recordExists(_namehash)) {
                     _node = _namehash;
+                    _ipns = contenthash[_namehash];
+                } else {
+                    //_ipns = contenthash[_namehash];
+                    break;
+                }
+            }
+            bytes4 func = bytes4(data[:4]);
+            address _resolver = ENS.resolver(_node);
+            if (_resolver != (address(this)) && !isWrapper[_resolver]) {
+                if (iERC165(_resolver).supportsInterface(iENSIP10.resolve.selector)) {
+                    return iENSIP10(_resolver).resolve(name, data);
+                } else {
+                    bool ok;
+                    (ok, result) = _resolver.staticcall(data);
+                    if (!ok || result.length == 0) {
+                        //? default error/profile page
+                        if (func == iResolver.contenthash.selector) {
+                            return abi.encode(contenthash[0]);
+                        } else {
+                            revert("BAD_RESOLVER");
+                        }
+                    }
+                    return abi.encode(result);
                 }
             }
 
-            require(_namehash == bytes32(data[4:36]), "BAD_NAMEHASH");
-
-            if (_ipns.length == 0) {
-                revert ContenthashNotSet(_namehash);
+            if (_ipns.length == 0 && bytes4(data[:4]) == iResolver.contenthash.selector) {
+                return abi.encode(contenthash[0]);
             }
-
-            //bytes4 func = bytes4(data[:4]);
-            string memory _jsonPath = funcToJson(data);
-            bytes32 _checkHash = keccak256(abi.encodePacked(THIS, blockhash(block.number - 1), _domain, _jsonPath));
+            //_ipns[0] == 0xe5 ? "/ipns/f" : "/ipfs/f",
+            //GATEWAY.bytesToHexString(_ipns, 2),
+            string memory _json = GATEWAY.funcToJson(data);
+            bytes32 _checkHash = keccak256(abi.encodePacked(this, blockhash(block.number - 1), _domain, _json));
             revert OffchainLookup(
-                THIS,
-                randomGateways(
+                address(this),
+                GATEWAY.randomGateways(
                     _ipns,
                     string.concat(
-                        //_ipns[0] == 0xe5 ? "/ipns/f" : "/ipfs/f",
-                        //bytesToString(_ipns, 2),
                         "/.well-known/",
                         _path,
                         "/",
-                        _jsonPath
+                        _json
                     ),
                     uint256(_checkHash)
                 ),
                 abi.encodePacked(uint64(block.timestamp / 60) * 60),
                 iCCIP2ETH.__callback.selector,
-                abi.encode(block.number - 1, _node, _checkHash, _domain, _jsonPath)
+                abi.encode(block.number - 1, _node, _checkHash, _domain, _json)
             );
         }
     }
@@ -198,13 +207,13 @@ contract CCIP2ETH is iCCIP2ETH, Gateway {
         view
         returns (bytes memory result)
     {
-        (uint256 _blocknumber, bytes32 _node, bytes32 _checkHash, string memory _domain, string memory _jsonPath) =
+        (uint256 _blocknumber, bytes32 _node, bytes32 _checkHash, string memory _domain, string memory _json) =
             abi.decode(extradata, (uint256, bytes32, bytes32, string, string));
 
         /// @dev: timeout in 3 blocks
         require(
             block.number <= _blocknumber + 3
-                && _checkHash == keccak256(abi.encodePacked(THIS, blockhash(_blocknumber), _domain, _jsonPath)),
+                && _checkHash == keccak256(abi.encodePacked(this, blockhash(_blocknumber), _domain, _json)),
             "INVALID_CHECKSUM/TIMEOUT"
         );
         address _signer;
@@ -214,29 +223,38 @@ contract CCIP2ETH is iCCIP2ETH, Gateway {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
         string memory _req;
-        string memory _ByStr = string.concat("eip155:", chainID, ":", toChecksumAddress(_signer));
+        //string memory _ByStr = string.concat("eip155:", chainID, ":", GATEWAY.toChecksumAddress(_signer));
         if (bytes4(response[:4]) == iCCIP2ETH.__callback.selector) {
             (_signer, signature, result) = abi.decode(response[4:], (address, bytes, bytes));
+            if (
+                _signer != _owner && !manager[keccak256(abi.encodePacked("manage-one", _node, _owner, _signer))]
+                    && !manager[keccak256(abi.encodePacked("manage-all", _owner, _signer))]
+            ) {
+                revert NotAuthorized(_node, _signer);
+            }
         } else if (bytes4(response[:4]) == iResolver.approved.selector) {
             bytes memory _approved;
             (_signer, signature, _approved, result) = abi.decode(response[4:], (address, bytes, bytes, bytes));
             _req = string.concat(
-                "Requesting Signature To Approve Off-Chain ENS Records Manager\n",
+                "Requesting Signature To Approve Off-Chain ENS Records Manager Key\n",
                 "\nENS Domain: ",
                 _domain,
-                "\nRecords Manager: ",
-                _ByStr,
+                "\nApproved For: ",
+                "eip155:",
+                chainID,
+                ":",
+                GATEWAY.toChecksumAddress(_signer),
                 "\nSigned By: ",
                 "eip155:",
                 chainID,
                 ":",
-                toChecksumAddress(_owner)
+                GATEWAY.toChecksumAddress(_owner)
             );
             if (
-                !iCCIP2ETH(THIS).validSignature(
+                !iCCIP2ETH(this).validSignature(
                     _owner,
                     keccak256(
-                        abi.encodePacked("\x19Ethereum Signed Message:\n", uintToString(bytes(_req).length), _req)
+                        abi.encodePacked("\x19Ethereum Signed Message:\n", GATEWAY.uintToString(bytes(_req).length), _req)
                     ),
                     _approved
                 )
@@ -246,28 +264,29 @@ contract CCIP2ETH is iCCIP2ETH, Gateway {
         } else {
             revert InvalidSignature("BAD_PREFIX");
         }
-        //(_signer, signature, result) = abi.decode(response[4:], (address, bytes, bytes));
         _req = string.concat(
             "Requesting Signature To Update Off-Chain ENS Record\n",
-            //"\nIMPORTANT: Please verify the integrity and authenticity of connected Off-chain ENS Records Manager before signing this message\n",
             "\nENS Domain: ",
             _domain,
             "\nRecord Type: ",
-            _jsonPath,
+            _json,
             "\nExtradata: 0x",
-            bytesToString(abi.encodePacked(keccak256(result)), 0),
+            GATEWAY.bytesToHexString(abi.encodePacked(keccak256(result)), 0),
             "\nSigned By:",
-            _ByStr
+            "eip155:",
+            chainID,
+            ":",
+            GATEWAY.toChecksumAddress(_signer)
         );
-        bytes32 _digest =
-            keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n", uintToString(bytes(_req).length), _req));
-        if (!iCCIP2ETH(THIS).validSignature(_signer, _digest, signature)) {
+        if (
+            !iCCIP2ETH(this).validSignature(
+                _signer,
+                keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n", GATEWAY.uintToString(bytes(_req).length), _req)),
+                signature
+            )
+        ) {
             revert InvalidSignature("BAD_SIGNER");
         }
-        if (
-            _signer != _owner && !manager[keccak256(abi.encodePacked("manage-one", _node, _owner, _signer))]
-                && !manager[keccak256(abi.encodePacked("manage-all", _owner, _signer))]
-        ) revert NotAuthorized(_node, _signer);
     }
 
     /**
@@ -353,13 +372,15 @@ contract CCIP2ETH is iCCIP2ETH, Gateway {
     event UpdateWrapper(address indexed _new, bool indexed _ok);
     /// @dev : dev only ??manage future upgrades in ENS wrapper??
 
-    function updateWrapper(address _addr, bool _set) external onlyDev {
+    function updateWrapper(address _addr, bool _set) external  {
+        require(msg.sender == GATEWAY.owner(), "Only Dev");
         require(_addr.code.length > 0, "Only Contract");
         isWrapper[_addr] = _set;
         emit UpdateWrapper(_addr, _set);
     }
 
-    function updateWrappers(address[] calldata _addrs, bool[] calldata _sets) external onlyDev {
+    function updateWrappers(address[] calldata _addrs, bool[] calldata _sets) external  {
+        require(msg.sender == GATEWAY.owner(), "Only Dev");
         uint256 len = _addrs.length;
         require(len == _sets.length, "BAD_LENGTH");
         for (uint256 i = 0; i < len; i++) {

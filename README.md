@@ -8,7 +8,7 @@ Off-chain ENS Records Manager
 `curl -L https://foundry.paradigm.xyz | bash && source ~/.bashrc && foundryup`
 
 ## Install dependency
-~~`forge install foundry-rs/forge-std --no-commit --no-git`~~
+`forge install foundry-rs/forge-std --no-commit --no-git`
 
 ## Goerli Testnet
  `./test/goerli.sh`

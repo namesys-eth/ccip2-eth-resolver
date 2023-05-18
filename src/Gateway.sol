@@ -3,7 +3,7 @@ pragma solidity >0.8.0 <0.9.0;
 
 import "./Interface.sol";
 
-abstract contract Gateway is iERC173 {
+contract Gateway is iERC173, iGateway {
     address immutable THIS = address(this);
 
     /// @dev : contract owner/multisig address
@@ -14,14 +14,16 @@ abstract contract Gateway is iERC173 {
 
     string public PrimaryGateway = "ipfs2.eth.limo";
 
+    mapping(bytes4 => string) public funcMap; // setter function?
+
     error ResolverFunctionNotImplemented(bytes4 func);
 
     constructor() {
-        funcToFile[iResolver.addr.selector] = "_address/60";
-        funcToFile[iResolver.pubkey.selector] = "pubkey";
-        funcToFile[iResolver.name.selector] = "name";
-        funcToFile[iResolver.contenthash.selector] = "contenthash";
-        funcToFile[iResolver.zonehash.selector] = "_dns/zonehash";
+        funcMap[iResolver.addr.selector] = "_address/60";
+        funcMap[iResolver.pubkey.selector] = "pubkey";
+        funcMap[iResolver.name.selector] = "name";
+        funcMap[iResolver.contenthash.selector] = "contenthash";
+        funcMap[iResolver.zonehash.selector] = "_dns/zonehash";
 
         owner = payable(msg.sender);
 
@@ -38,20 +40,21 @@ abstract contract Gateway is iERC173 {
      * Gateway URL e.g. https://gateway.tld/ipns/f<ipns-hash-hex>/.well-known/eth/virgil/<records>.json?t1=0x0123456789
      */
 
-    function randomGateways(bytes memory _ipns, string memory _path, uint256 k)
+    function randomGateways(bytes calldata _ipnsStr, string memory _path, uint256 k)
         public
         view
         returns (string[] memory gateways)
     {
         unchecked {
+            uint256 strLen = _ipnsStr.length;
             uint256 gLen = Gateways.length;
             uint256 len = (gLen / 2) + 1;
             if (len > 5) len = 5;
             gateways = new string[](len);
             uint256 i;
             if (bytes(PrimaryGateway).length > 0) {
-                //bytesToString(_ipns, 2);
-                gateways[i++] = string.concat("https://f", ".", PrimaryGateway, _path);
+                //bytesToHexString(_ipns, 2);
+                gateways[i++] = string.concat("https://f", string(_ipnsStr[0:strLen - 128]), ".", PrimaryGateway, _path);
             }
             while (i < len) {
                 k = uint256(keccak256(abi.encodePacked(block.number * i, k)));
@@ -61,25 +64,24 @@ abstract contract Gateway is iERC173 {
     }
     /// @dev Resolver function bytes4 selector → Off-chain record filename <name>.json
 
-    mapping(bytes4 => string) public funcToFile; // setter function?
-
     function funcToJson(bytes calldata data) public view returns (string memory _jsonPath) {
         bytes4 func = bytes4(data[:4]);
-        if (bytes(funcToFile[func]).length > 0) {
-            _jsonPath = funcToFile[func];
+        if (bytes(funcMap[func]).length > 0) {
+            _jsonPath = funcMap[func];
         } else if (func == iResolver.text.selector) {
             _jsonPath = abi.decode(data[36:], (string));
         } else if (func == iOverloadResolver.addr.selector) {
             _jsonPath = string.concat("_address/", uintToString(abi.decode(data[36:], (uint256))));
         } else if (func == iResolver.interfaceImplementer.selector) {
             _jsonPath =
-                string.concat("_interface/0x", bytesToString(abi.encodePacked(abi.decode(data[36:], (bytes4))), 0));
+                string.concat("_interface/0x", bytesToHexString(abi.encodePacked(abi.decode(data[36:], (bytes4))), 0));
         } else if (func == iResolver.ABI.selector) {
             _jsonPath = string.concat("_abi/", uintToString(abi.decode(data[36:], (uint256))));
         } else if (func == iResolver.dnsRecord.selector) {
             /// @dev : TODO, use latest ENS codes/ENSIP for DNS records
             (bytes32 _name, uint16 resource) = abi.decode(data[36:], (bytes32, uint16));
-            _jsonPath = string.concat("_dns/0x", bytesToString(abi.encodePacked(_name), 0), "/", uintToString(resource));
+            _jsonPath =
+                string.concat("_dns/0x", bytesToHexString(abi.encodePacked(_name), 0), "/", uintToString(resource));
         } else {
             revert ResolverFunctionNotImplemented(func);
         }
@@ -114,7 +116,7 @@ abstract contract Gateway is iERC173 {
         bytes memory result = new bytes(40); //bytes20*2
         bytes memory B16 = "0123456789ABCDEF";
         bytes memory b16 = "0123456789abcdef";
-        bytes32 hash = keccak256(abi.encodePacked(bytesToString(_buffer, 0)));
+        bytes32 hash = keccak256(abi.encodePacked(bytesToHexString(_buffer, 0)));
         uint256 high;
         uint256 low;
         for (uint256 i; i < 20; i++) {
@@ -128,7 +130,7 @@ abstract contract Gateway is iERC173 {
 
     error ContenthashNotImplemented(bytes1 _type);
 
-    function bytesToString(bytes memory _buffer, uint256 _start) public pure returns (string memory) {
+    function bytesToHexString(bytes memory _buffer, uint256 _start) public pure returns (string memory) {
         uint256 len = _buffer.length - _start;
         bytes memory result = new bytes((len) * 2);
         bytes memory b16 = bytes("0123456789abcdef");
@@ -153,7 +155,7 @@ abstract contract Gateway is iERC173 {
     event UpdateFuncFile(bytes4 _func, string _name);
 
     function addFuncMap(bytes4 _func, string calldata _name) external onlyDev {
-        funcToFile[_func] = _name;
+        funcMap[_func] = _name;
         emit UpdateFuncFile(_func, _name);
     }
 
