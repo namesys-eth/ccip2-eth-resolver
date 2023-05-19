@@ -3,11 +3,16 @@ pragma solidity >0.8.0 <0.9.0;
 
 import "./Interface.sol";
 
-contract Gateway is iERC173, iGateway {
+contract GatewayManager is iERC173, iGateway {
     address immutable THIS = address(this);
 
     /// @dev : contract owner/multisig address
     address public owner;
+
+    modifier onlyDev() {
+        require(msg.sender == owner, "Only Dev");
+        _;
+    }
 
     /// @dev : list of gateway domain
     string[] public Gateways;
@@ -144,11 +149,6 @@ contract Gateway is iERC173, iGateway {
     }
 
     /// @dev : Gateway Management Functions
-
-    modifier onlyDev() {
-        require(msg.sender == owner, "Only Dev");
-        _;
-    }
 
     event AddGateway(string indexed domain);
     event RemoveGateway(string indexed domain);

@@ -12,3 +12,5 @@ Off-chain ENS Records Manager
 
 ## Goerli Testnet
  `./test/goerli.sh`
+
+![image info](./viz.svg)

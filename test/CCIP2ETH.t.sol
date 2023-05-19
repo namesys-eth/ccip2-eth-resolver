@@ -24,6 +24,7 @@ contract ResolverGoerli is Test {
     error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
 
     CCIP2ETH public resolver;
+    iGateway public gateway;
     xENS public ENS = xENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
 
     Utils public utils = new Utils();
@@ -32,6 +33,7 @@ contract ResolverGoerli is Test {
 
     function setUp() public {
         resolver = new CCIP2ETH();
+        gateway = iGateway(resolver.gateway());
         //(uint256 status, bytes memory data) = "https://httpbin.org/get".get();
     }
 
@@ -57,8 +59,9 @@ contract ResolverGoerli is Test {
         address _addr = ENS.owner(_namehash);
         vm.prank(_addr);
         ENS.setOwner(_namehash, address(this));
-        bytes memory _ipns = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
-        resolver.setRecordhash(_namehash, _ipns);
+        bytes memory _recordhash =
+            hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
+        resolver.setRecordhash(_namehash, _recordhash);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _namehash);
         bytes32 _checkHash =
@@ -67,13 +70,14 @@ contract ResolverGoerli is Test {
             abi.encodeWithSelector(
                 ResolverGoerli.OffchainLookup.selector,
                 address(resolver),
-                resolver.randomGateways(
+                gateway.randomGateways(
+                    _recordhash,
                     string.concat(
-                        "/ipns/f",
-                        resolver.bytesToString(_ipns, 2),
+                        //"/ipns/f",
+                        //gateway.bytesToHexString(_recordhash, 2),
                         "/.well-known/",
                         _path,
-                        "/_address/60.json?t={data}&format=dag-json"
+                        "/_address/60.json?t={data}"
                     ),
                     uint256(_checkHash)
                 ),
@@ -95,8 +99,9 @@ contract ResolverGoerli is Test {
         address _addr = ENS.owner(_namehash);
         vm.prank(_addr);
         ENS.setOwner(_namehash, address(this));
-        bytes memory _ipns = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
-        resolver.setRecordhash(_namehash, _ipns);
+        bytes memory _recordhash =
+            hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
+        resolver.setRecordhash(_namehash, _recordhash);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.text.selector, _namehash, abi.encode(string("avatar")));
         bytes32 _checkHash =
@@ -105,13 +110,14 @@ contract ResolverGoerli is Test {
             abi.encodeWithSelector(
                 ResolverGoerli.OffchainLookup.selector,
                 address(resolver),
-                resolver.randomGateways(
+                gateway.randomGateways(
+                    _recordhash,
                     string.concat(
-                        "/ipns/f",
-                        resolver.bytesToString(_ipns, 2),
+                        //    "/ipns/f",
+                        //    gateway.bytesToHexString(_recordhash, 2),
                         "/.well-known/",
                         _path,
-                        "/avatar.json?t={data}&format=dag-json"
+                        "/avatar.json?t={data}"
                     ),
                     uint256(_checkHash)
                 ),
@@ -132,8 +138,9 @@ contract ResolverGoerli is Test {
         address _addr = ENS.owner(_baseNode);
         vm.prank(_addr);
         ENS.setOwner(_baseNode, address(this)); // owner records at level 2 only
-        bytes memory _ipns = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
-        resolver.setRecordhash(_baseNode, _ipns);
+        bytes memory _recordhash =
+            hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
+        resolver.setRecordhash(_baseNode, _recordhash);
 
         bytes[] memory _name = new bytes[](7);
         _name[0] = "sub6";
@@ -153,13 +160,14 @@ contract ResolverGoerli is Test {
             abi.encodeWithSelector(
                 ResolverGoerli.OffchainLookup.selector,
                 address(resolver),
-                resolver.randomGateways(
+                gateway.randomGateways(
+                    _recordhash,
                     string.concat(
-                        "/ipns/f",
-                        resolver.bytesToString(_ipns, 2),
+                        //    "/ipns/f",
+                        //    gateway.bytesToHexString(_recordhash, 2),
                         "/.well-known/",
                         _path,
-                        "/showcase.json?t={data}&format=dag-json"
+                        "/showcase.json?t={data}"
                     ),
                     uint256(_checkHash)
                 ),
@@ -183,8 +191,9 @@ contract ResolverGoerli is Test {
         address _signer = vm.addr(PrivateKey);
         vm.prank(_owner);
         ENS.setOwner(_node, address(this));
-        bytes memory _ipns = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
-        resolver.fastSetup(_node, _signer, _ipns);
+        bytes memory _recordhash =
+            hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
+        resolver.setRecordhash(_node, _recordhash);
 
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _node);
@@ -195,13 +204,14 @@ contract ResolverGoerli is Test {
             abi.encodeWithSelector(
                 ResolverGoerli.OffchainLookup.selector,
                 address(resolver),
-                resolver.randomGateways(
+                gateway.randomGateways(
+                    _recordhash,
                     string.concat(
-                        "/ipns/f",
-                        resolver.bytesToString(_ipns, 2),
+                        //    "/ipns/f",
+                        //    gateway.bytesToHexString(_recordhash, 2),
                         "/.well-known/",
                         _path,
-                        "/_address/60.json?t={data}&format=dag-json"
+                        "/_address/60.json?t={data}"
                     ),
                     uint256(_checkHash)
                 ),
@@ -213,19 +223,19 @@ contract ResolverGoerli is Test {
         resolver.resolve(_encoded, _request);
         bytes memory _result = abi.encode(address(this));
         string memory _req = string.concat(
-            "Requesting signature for off-chain ENS record\n",
+            "Requesting Signature To Update Off-Chain ENS Record\n",
             //"\nIMPORTANT: Please verify the integrity and authenticity of connected Off-chain ENS Records Manager before signing this message\n",
             "\nENS Domain: ",
             _domain,
             "\nRecord Type: ",
             "_address/60",
             "\nRecord Hash: 0x",
-            resolver.bytesToString(abi.encodePacked(keccak256(_result)), 0),
+            gateway.bytesToHexString(abi.encodePacked(keccak256(_result)), 0),
             "\nSigned By: eip155:1:",
-            resolver.toChecksumAddress(address(_signer))
+            gateway.toChecksumAddress(address(_signer))
         );
         bytes32 _digest = keccak256(
-            abi.encodePacked("\x19Ethereum Signed Message:\n", resolver.uintToString(bytes(_req).length), _req)
+            abi.encodePacked("\x19Ethereum Signed Message:\n", gateway.uintToString(bytes(_req).length), _req)
         );
 
         assertTrue(resolver.approved(_node, _signer));

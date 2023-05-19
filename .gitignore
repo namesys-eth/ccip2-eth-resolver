@@ -8,3 +8,4 @@ out/
 docs/
 node_modules
 lib
+*.lock
