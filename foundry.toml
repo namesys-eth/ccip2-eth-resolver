@@ -16,6 +16,5 @@ gas_reports = ["*"]
 #ffi = true
 
 #line_length = 50
-
-bytecode_hash = "none" 
-cbor_metadata=false
+#bytecode_hash = "none" 
+#cbor_metadata=false

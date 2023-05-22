@@ -45,25 +45,41 @@ contract GatewayManager is iERC173, iGateway {
      * Gateway URL e.g. https://gateway.tld/ipns/f<ipns-hash-hex>/.well-known/eth/virgil/<records>.json?t1=0x0123456789
      */
 
-    function randomGateways(bytes calldata _ipnsStr, string memory _path, uint256 k)
+    function randomGateways(bytes calldata _recordhash, string memory _path, uint256 k)
         public
         view
         returns (string[] memory gateways)
     {
         unchecked {
-            uint256 strLen = _ipnsStr.length;
+            //uint256 strLen = _recordhash.length;
             uint256 gLen = Gateways.length;
             uint256 len = (gLen / 2) + 1;
-            if (len > 5) len = 5;
+            if (len > 4) len = 4;
             gateways = new string[](len);
             uint256 i;
             if (bytes(PrimaryGateway).length > 0) {
-                //bytesToHexString(_ipns, 2);
-                gateways[i++] = string.concat("https://f", string(_ipnsStr[0:strLen - 128]), ".", PrimaryGateway, _path);
+                gateways[i++] = string.concat("https://", formatSubdomain(_recordhash), ".", PrimaryGateway, _path);
             }
+            string memory _fullPath;
+            bytes1 _prefix = _recordhash[0];
+            if (_prefix == 0xe5) {
+                _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path);
+            } else if (_prefix == 0xe3) {
+                _fullPath = string.concat("/ipfs/f", bytesToHexString(_recordhash, 2), _path);
+            } else {
+                if (_prefix == bytes1("k")) {
+                    _fullPath = string.concat("/ipns/", string(_recordhash), _path);
+                } else if (_prefix == bytes1("b")) {
+                    _fullPath = string.concat("/ipfs/", string(_recordhash), _path);
+                } else {
+                    revert("UNSUPPORTED_RECORDHASH");
+                }
+            }
+
+            //(( || _prefix == bytes1("k"))? "/ipns/f" : "/ipfs/f"), bytesToHexString(_recordhash, 2), _path
             while (i < len) {
                 k = uint256(keccak256(abi.encodePacked(block.number * i, k)));
-                gateways[i++] = string.concat("https://", Gateways[k % gLen], _path);
+                gateways[i++] = string.concat("https://", Gateways[k % gLen], _fullPath);
             }
         }
     }
@@ -90,7 +106,20 @@ contract GatewayManager is iERC173, iGateway {
         } else {
             revert ResolverFunctionNotImplemented(func);
         }
-        _jsonPath = string.concat(_jsonPath, ".json?t={data}");
+        _jsonPath = string.concat(_jsonPath, ".json?t={data}"); //&format=dag-cbor
+    }
+
+    function formatSubdomain(bytes calldata _recordhash) public pure returns (string memory result) {
+        uint256 len = _recordhash.length;
+        uint256 pointer = len % 16;
+        bytes1 prefix = _recordhash[0];
+        if (prefix == bytes1("b") || prefix == bytes1("k")) {
+            return string(_recordhash);
+        }
+        result = string.concat(bytesToHexString(_recordhash[:pointer], 0));
+        while (pointer < len) {
+            result = string.concat(result, ".", bytesToHexString(_recordhash[pointer:pointer += 16], 0));
+        }
     }
 
     /**

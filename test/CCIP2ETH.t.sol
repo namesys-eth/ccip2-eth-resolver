@@ -59,41 +59,37 @@ contract ResolverGoerli is Test {
         address _addr = ENS.owner(_namehash);
         vm.prank(_addr);
         ENS.setOwner(_namehash, address(this));
+
+        ENS.setResolver(_namehash, address(resolver));
         bytes memory _recordhash =
             hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
         resolver.setRecordhash(_namehash, _recordhash);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
+        console.logString(_path);
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _namehash);
+        string memory _suffix = gateway.funcToJson(_request);
         bytes32 _checkHash =
-            keccak256(abi.encodePacked(address(resolver), blockhash(block.number - 1), _domain, string("_address/60")));
+            keccak256(abi.encodePacked(address(resolver), blockhash(block.number - 1), _domain, _path, _suffix));
         vm.expectRevert(
             abi.encodeWithSelector(
                 ResolverGoerli.OffchainLookup.selector,
                 address(resolver),
                 gateway.randomGateways(
-                    _recordhash,
-                    string.concat(
-                        //"/ipns/f",
-                        //gateway.bytesToHexString(_recordhash, 2),
-                        "/.well-known/",
-                        _path,
-                        "/_address/60.json?t={data}"
-                    ),
-                    uint256(_checkHash)
+                    _recordhash, string.concat("/.well-known/", _path, "/", _suffix), uint256(_checkHash)
                 ),
-                abi.encodePacked(uint64(block.timestamp / 60) * 60),
+                abi.encodePacked(uint32(block.timestamp / 60) * 60),
                 resolver.__callback.selector,
-                abi.encode(block.number - 1, _namehash, _checkHash, _domain, string("_address/60"))
+                abi.encode(_namehash, block.number - 1, _checkHash, _domain, _path, _suffix)
             )
         );
         resolver.resolve(_encoded, _request);
     }
-
     /// @dev : test CCIP-Read call
+
     function testResolveLevel3() public {
         bytes[] memory _name = new bytes[](3);
-        _name[0] = "app";
-        _name[1] = "ccip2";
+        _name[0] = "blog";
+        _name[1] = "vitalik";
         _name[2] = "eth";
         (bytes32 _namehash, bytes memory _encoded) = utils.Encode(_name);
         address _addr = ENS.owner(_namehash);
@@ -104,26 +100,19 @@ contract ResolverGoerli is Test {
         resolver.setRecordhash(_namehash, _recordhash);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.text.selector, _namehash, abi.encode(string("avatar")));
+        string memory _suffix = gateway.funcToJson(_request);
         bytes32 _checkHash =
-            keccak256(abi.encodePacked(address(resolver), blockhash(block.number - 1), _domain, string("avatar")));
+            keccak256(abi.encodePacked(address(resolver), blockhash(block.number - 1), _domain, _path, _suffix));
         vm.expectRevert(
             abi.encodeWithSelector(
                 ResolverGoerli.OffchainLookup.selector,
                 address(resolver),
                 gateway.randomGateways(
-                    _recordhash,
-                    string.concat(
-                        //    "/ipns/f",
-                        //    gateway.bytesToHexString(_recordhash, 2),
-                        "/.well-known/",
-                        _path,
-                        "/avatar.json?t={data}"
-                    ),
-                    uint256(_checkHash)
+                    _recordhash, string.concat("/.well-known/", _path, "/", _suffix), uint256(_checkHash)
                 ),
-                abi.encodePacked(uint64(block.timestamp / 60) * 60),
+                abi.encodePacked(uint32(block.timestamp / 60) * 60),
                 resolver.__callback.selector,
-                abi.encode(block.number - 1, _namehash, _checkHash, _domain, string("avatar"))
+                abi.encode(_namehash, block.number - 1, _checkHash, _domain, _path, _suffix)
             )
         );
         resolver.resolve(_encoded, _request);
@@ -131,7 +120,7 @@ contract ResolverGoerli is Test {
 
     function testResolveLevel7() public {
         bytes[] memory _base = new bytes[](2);
-        _base[0] = "ccip2";
+        _base[0] = "domain";
         _base[1] = "eth";
 
         (bytes32 _baseNode, bytes memory _encoded) = utils.Encode(_base);
@@ -143,37 +132,30 @@ contract ResolverGoerli is Test {
         resolver.setRecordhash(_baseNode, _recordhash);
 
         bytes[] memory _name = new bytes[](7);
-        _name[0] = "sub6";
-        _name[1] = "sub5";
-        _name[2] = "sub4";
-        _name[3] = "sub3";
-        _name[4] = "sub2";
-        _name[5] = "ccip2";
+        _name[0] = "never";
+        _name[1] = "gonna";
+        _name[2] = "give";
+        _name[3] = "you";
+        _name[4] = "up";
+        _name[5] = "domain";
         _name[6] = "eth";
         bytes32 _namehash; // full namehash
         (_namehash, _encoded) = utils.Encode(_name);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.text.selector, _namehash, abi.encode(string("showcase")));
+        string memory _suffix = gateway.funcToJson(_request);
         bytes32 _checkHash =
-            keccak256(abi.encodePacked(address(resolver), blockhash(block.number - 1), _domain, string("showcase")));
+            keccak256(abi.encodePacked(address(resolver), blockhash(block.number - 1), _domain, _path, _suffix));
         vm.expectRevert(
             abi.encodeWithSelector(
                 ResolverGoerli.OffchainLookup.selector,
                 address(resolver),
                 gateway.randomGateways(
-                    _recordhash,
-                    string.concat(
-                        //    "/ipns/f",
-                        //    gateway.bytesToHexString(_recordhash, 2),
-                        "/.well-known/",
-                        _path,
-                        "/showcase.json?t={data}"
-                    ),
-                    uint256(_checkHash)
+                    _recordhash, string.concat("/.well-known/", _path, "/", _suffix), uint256(_checkHash)
                 ),
-                abi.encodePacked(uint64(block.timestamp / 60) * 60),
+                abi.encodePacked(uint32(block.timestamp / 60) * 60),
                 resolver.__callback.selector,
-                abi.encode(block.number - 1, _baseNode, _checkHash, _domain, string("showcase"))
+                abi.encode(_baseNode, block.number - 1, _checkHash, _domain, _path, _suffix)
             )
         );
         resolver.resolve(_encoded, _request);
@@ -191,45 +173,38 @@ contract ResolverGoerli is Test {
         address _signer = vm.addr(PrivateKey);
         vm.prank(_owner);
         ENS.setOwner(_node, address(this));
+        resolver.approve(_node, _signer, true);
         bytes memory _recordhash =
             hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
         resolver.setRecordhash(_node, _recordhash);
 
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _node);
+        string memory _suffix = gateway.funcToJson(_request);
         bytes32 _checkHash =
-            keccak256(abi.encodePacked(address(resolver), blockhash(block.number - 1), _domain, string("_address/60")));
-        bytes memory _extraData = abi.encode(block.number - 1, _node, _checkHash, _domain, string("_address/60"));
+            keccak256(abi.encodePacked(address(resolver), blockhash(block.number - 1), _domain, _path, _suffix));
+        bytes memory _extradata = abi.encode(_node, block.number - 1, _checkHash, _domain, _path, _suffix);
         vm.expectRevert(
             abi.encodeWithSelector(
                 ResolverGoerli.OffchainLookup.selector,
                 address(resolver),
                 gateway.randomGateways(
-                    _recordhash,
-                    string.concat(
-                        //    "/ipns/f",
-                        //    gateway.bytesToHexString(_recordhash, 2),
-                        "/.well-known/",
-                        _path,
-                        "/_address/60.json?t={data}"
-                    ),
-                    uint256(_checkHash)
+                    _recordhash, string.concat("/.well-known/", _path, "/", _suffix), uint256(_checkHash)
                 ),
-                abi.encodePacked(uint64(block.timestamp / 60) * 60),
+                abi.encodePacked(uint32(block.timestamp / 60) * 60),
                 resolver.__callback.selector,
-                _extraData
+                _extradata
             )
         );
         resolver.resolve(_encoded, _request);
         bytes memory _result = abi.encode(address(this));
         string memory _req = string.concat(
             "Requesting Signature To Update Off-Chain ENS Record\n",
-            //"\nIMPORTANT: Please verify the integrity and authenticity of connected Off-chain ENS Records Manager before signing this message\n",
             "\nENS Domain: ",
             _domain,
             "\nRecord Type: ",
-            "_address/60",
-            "\nRecord Hash: 0x",
+            _suffix,
+            "\nExtradata: 0x",
             gateway.bytesToHexString(abi.encodePacked(keccak256(_result)), 0),
             "\nSigned By: eip155:1:",
             gateway.toChecksumAddress(address(_signer))
@@ -243,7 +218,7 @@ contract ResolverGoerli is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(PrivateKey, _digest);
         bytes memory _signature = abi.encodePacked(r, s, v);
         bytes memory _response =
-            abi.encodePacked(resolver.__callback.selector, abi.encode(_signer, _signature, _result));
-        assertEq(_result, resolver.__callback(_response, _extraData));
+            abi.encodePacked(resolver.recordhash.selector, abi.encode(_signer, _signature, _result));
+        assertEq(_result, resolver.__callback(_response, _extradata));
     }
 }
