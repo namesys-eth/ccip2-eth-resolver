@@ -1,0 +1,17 @@
+{
+  "name": "ccip2eth",
+  "version": "1.0.0",
+  "description": "CCIP2.ETH Resolver",
+  "main": "index.js",
+  "repository": "https://github.com/namesys-eth/ccip2-eth-resolver",
+  "author": "0xc0de4c0ffee <43116881+0xc0de4c0ffee@users.noreply.github.com>",
+  "license": "MIT",  
+  "scripts": {
+    "anvil": "anvil --fork-url https://rpc.ankr.com/eth_goerli",
+    "test": "forge fmt && source .env && forge test --fork-url $GOERLI_RPC_URL -vvvv --fork-block-number 8897000 --gas-report",
+    "dev": "forge fmt && source .env && forge test --fork-url $GOERLI_RPC_URL -vvv --fork-block-number 8897000 --gas-report --watch"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}
