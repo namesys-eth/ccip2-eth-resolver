@@ -1,6 +1,6 @@
-name: test
+name: CCIP2ETH Test
 
-on: workflow_dispatch
+on: [workflow_dispatch, push]
 
 env:
   FOUNDRY_PROFILE: ci
@@ -10,12 +10,16 @@ jobs:
     strategy:
       fail-fast: true
 
-    name: Foundry project
+    name: CCIP2.ETH Resolver Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
+          
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '16.x'
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
@@ -24,11 +28,11 @@ jobs:
 
       - name: Run Forge build
         run: |
-          forge --version
+          forge install foundry-rs/forge-std --no-commit --no-git
           forge build --sizes
         id: build
 
       - name: Run Forge tests
         run: |
-          forge test -vvv
+          forge test --fork-url https://rpc.ankr.com/eth_goerli -vvvv --fork-block-number 8897000
         id: test
