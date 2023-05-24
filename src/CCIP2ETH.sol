@@ -103,12 +103,11 @@ contract CCIP2ETH is iCCIP2ETH {
     event RecordhashChanged(bytes32 indexed _node, bytes _contenthash);
 
     /**
-     * @dev ENS Resolve function
-     * @param name ENS name to resolve, DNS encoded
-     * @param data data encoding specific resolver function
-     * @return result triggers offchain lookup so return value is never used directly
+     * @dev EIP-2544/EIP-3668 core resolve() function; aka CCIP-Read
+     * @param name - ENS name to resolve; must be DNS encoded
+     * @param data - data encoding specific function to resolve
+     * @return result - triggers Off-chain Lookup; return value is stashed
      */
-
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory result) {
         unchecked {
             uint256 index = 1;
