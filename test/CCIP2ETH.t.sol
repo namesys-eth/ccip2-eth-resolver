@@ -10,14 +10,12 @@ import "src/CCIP2ETH.sol";
  */
 
 interface xENS is iENS {
-    // write function used only for test/deploy
     function setResolver(bytes32 node, address resolver) external;
     function setOwner(bytes32 node, address owner) external;
 }
 
 contract ResolverGoerli is Test {
     // using Surl for *;
-
     error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
 
     CCIP2ETH public resolver;
@@ -157,8 +155,8 @@ contract ResolverGoerli is Test {
         );
         resolver.resolve(_encoded, _request);
     }
+    
     /// @dev : test full end-to-end resolver
-
     function testCCIPCallbackLevel2() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "ccip2";

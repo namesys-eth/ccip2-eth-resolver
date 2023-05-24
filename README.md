@@ -7,6 +7,7 @@ Off-chain ENS Records Resolver
 ## [Install Foundry](https://getfoundry.sh/)
 `curl -L https://foundry.paradigm.xyz | bash && source ~/.bashrc && foundryup`
 
+<<<<<<< HEAD
 ## Install dependency
 `forge install foundry-rs/forge-std --no-commit --no-git`
 
@@ -195,3 +196,7 @@ Note: If the JSON data is signed by the Registrant of `domain.eth`, it must be p
     }
 
 ```
+=======
+## Goerli Testnet
+ `./test/goerli.sh`
+>>>>>>> ec7b5f9 (sync)
