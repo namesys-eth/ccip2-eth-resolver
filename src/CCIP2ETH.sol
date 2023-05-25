@@ -22,7 +22,7 @@ contract CCIP2ETH is iCCIP2ETH {
     /// @dev constructor initial setup
 
     constructor() {
-        gateway = new GatewayManager();
+        gateway = new GatewayManager(msg.sender);
 
         //isWrapper[address(gateway)] = true; // set ipfs2.eth resolver here
         //emit UpdateWrapper(address(gateway), true); // set ipfs2.eth resolver here
@@ -49,23 +49,17 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     event ThankYou(address indexed _addr, uint256 indexed _value);
-    /// @dev revert on receive
+    /// @dev reveive donation
 
     receive() external payable {
         emit ThankYou(msg.sender, msg.value);
     }
 
-    string public chainID = "1";
-
-    function setChainId() external {
-        chainID = gateway.uintToString(block.chainid);
-    }
-
-    function updateGatewayManager(address _gm) external {
+    function updateGatewayManager(address _gateway) external {
         require(msg.sender == gateway.owner(), "Only Dev");
-        require(msg.sender == iGateway(_gm).owner(), "Invalid Gateway Contract");
-        emit UpdateGatewayManager(address(gateway), _gm);
-        gateway = iGateway(_gm);
+        require(msg.sender == iGateway(_gateway).owner(), "Invalid Gateway Contract");
+        emit UpdateGatewayManager(address(gateway), _gateway);
+        gateway = iGateway(_gateway);
     }
 
     event UpdateGatewayManager(address indexed _old, address indexed _new);
@@ -99,10 +93,9 @@ contract CCIP2ETH is iCCIP2ETH {
         if (isWrapper[_owner]) {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
-        if (
-            msg.sender != _owner && !manager[keccak256(abi.encodePacked("manager", _node, _owner, msg.sender))]
-                && !manager[keccak256(abi.encodePacked("manage-all", _owner, msg.sender))]
-        ) revert NotAuthorized(_node, msg.sender);
+        if (msg.sender != _owner && !manager[keccak256(abi.encodePacked("manager", _node, _owner, msg.sender))]) {
+            revert NotAuthorized(_node, msg.sender);
+        }
         recordhash[_node] = _contenthash;
         emit RecordhashChanged(_node, _contenthash);
     }
