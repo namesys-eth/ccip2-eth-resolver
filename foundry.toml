@@ -8,13 +8,7 @@ optimizer = true
 viaIR = true
 
 # The number of optimizer runs
-optimizer_runs = 999
-gas_reports = ["*"]
+#optimizer_runs = 666
+gas_reports = ["CCIP2ETH", "GatewayManager"]
+
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
-
-# Dangerous, don't trust
-#ffi = true
-
-#line_length = 50
-#bytecode_hash = "none" 
-#cbor_metadata=false

@@ -23,14 +23,14 @@ contract GatewayManager is iERC173, iGateway {
 
     error ResolverFunctionNotImplemented(bytes4 func);
 
-    constructor() {
+    constructor(address _owner) {
+        owner = payable(_owner);
+
         funcMap[iResolver.addr.selector] = "_address/60";
         funcMap[iResolver.pubkey.selector] = "pubkey";
         funcMap[iResolver.name.selector] = "name";
         funcMap[iResolver.contenthash.selector] = "contenthash";
-        funcMap[iResolver.zonehash.selector] = "_dns/zonehash";
-
-        owner = payable(msg.sender);
+        funcMap[iResolver.zonehash.selector] = "_dnsrecord/zonehash";
 
         Gateways.push("dweb.link");
         emit AddGateway("dweb.link");
@@ -51,7 +51,6 @@ contract GatewayManager is iERC173, iGateway {
         returns (string[] memory gateways)
     {
         unchecked {
-            //uint256 strLen = _recordhash.length;
             uint256 gLen = Gateways.length;
             uint256 len = (gLen / 2) + 1;
             if (len > 4) len = 4;
@@ -62,18 +61,20 @@ contract GatewayManager is iERC173, iGateway {
             }
             string memory _fullPath;
             bytes1 _prefix = _recordhash[0];
-            if (_prefix == 0xe5) {
-                _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path);
+            if (_prefix == 0xe2) {
+                _fullPath = string.concat("/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, "&t={data}");
+            } else if (_prefix == 0xe5) {
+                _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path, "?t={data}");
             } else if (_prefix == 0xe3) {
-                _fullPath = string.concat("/ipfs/f", bytesToHexString(_recordhash, 2), _path);
+                _fullPath = string.concat("/ipfs/f", bytesToHexString(_recordhash, 2), _path, "?t={data}");
             } else {
-                if (_prefix == bytes1("k")) {
-                    _fullPath = string.concat("/ipns/", string(_recordhash), _path);
-                } else if (_prefix == bytes1("b")) {
-                    _fullPath = string.concat("/ipfs/", string(_recordhash), _path);
-                } else {
-                    revert("UNSUPPORTED_RECORDHASH");
-                }
+                //if (_prefix == bytes1("k")) {
+                //    _fullPath = string.concat("/ipns/", string(_recordhash), _path);
+                //} else if (bytes2(_recordhash[:2]) == bytes2("ba")) {
+                //    _fullPath = string.concat("/ipfs/", string(_recordhash), _path);
+                //} else {
+                revert("UNSUPPORTED_RECORDHASH");
+                //}
             }
 
             //(( || _prefix == bytes1("k"))? "/ipns/f" : "/ipfs/f"), bytesToHexString(_recordhash, 2), _path
@@ -101,21 +102,22 @@ contract GatewayManager is iERC173, iGateway {
         } else if (func == iResolver.dnsRecord.selector) {
             /// @dev : TODO, use latest ENS codes/ENSIP for DNS records
             (bytes32 _name, uint16 resource) = abi.decode(data[36:], (bytes32, uint16));
-            _jsonPath =
-                string.concat("_dns/0x", bytesToHexString(abi.encodePacked(_name), 0), "/", uintToString(resource));
+            _jsonPath = string.concat(
+                "_dnsrecord/0x", bytesToHexString(abi.encodePacked(_name), 0), "/", uintToString(resource)
+            );
         } else {
             revert ResolverFunctionNotImplemented(func);
         }
-        _jsonPath = string.concat(_jsonPath, ".json?t={data}"); //&format=dag-cbor
+        _jsonPath = string.concat(_jsonPath, ".json");
     }
 
     function formatSubdomain(bytes calldata _recordhash) public pure returns (string memory result) {
         uint256 len = _recordhash.length;
         uint256 pointer = len % 16;
-        bytes1 prefix = _recordhash[0];
-        if (prefix == bytes1("b") || prefix == bytes1("k")) {
-            return string(_recordhash);
-        }
+        //bytes1 prefix = _recordhash[0];
+        //if (prefix == bytes1("b") || prefix == bytes1("k")) {
+        //    return string(_recordhash);
+        //}
         result = string.concat(bytesToHexString(_recordhash[:pointer], 0));
         while (pointer < len) {
             result = string.concat(result, ".", bytesToHexString(_recordhash[pointer:pointer += 16], 0));
