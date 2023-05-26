@@ -6,6 +6,9 @@ import "./Interface.sol";
 contract GatewayManager is iERC173, iGateway {
     address immutable THIS = address(this);
 
+    error ResolverFunctionNotImplemented(bytes4 func);
+    error ContenthashNotImplemented(bytes1 _type);
+
     /// @dev : contract owner/multisig address
     address public owner;
 
@@ -19,9 +22,15 @@ contract GatewayManager is iERC173, iGateway {
 
     string public PrimaryGateway = "ipfs2.eth.limo";
 
-    mapping(bytes4 => string) public funcMap; // setter function?
+    event UpdatePrimaryGateway(string _old, string _new);
 
-    error ResolverFunctionNotImplemented(bytes4 func);
+    function updatePrimaryGateway(string calldata _primary) external onlyDev {
+        emit UpdatePrimaryGateway(PrimaryGateway, _primary);
+        PrimaryGateway = _primary;
+    }
+
+    /// @notice : map bytes4 resolver functions to <string> path
+    mapping(bytes4 => string) public funcMap;
 
     constructor(address _owner) {
         owner = payable(_owner);
@@ -163,8 +172,6 @@ contract GatewayManager is iERC173, iGateway {
         }
         return string.concat("0x", string(result));
     }
-
-    error ContenthashNotImplemented(bytes1 _type);
 
     function bytesToHexString(bytes memory _buffer, uint256 _start) public pure returns (string memory) {
         uint256 len = _buffer.length - _start;

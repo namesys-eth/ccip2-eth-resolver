@@ -21,6 +21,12 @@ contract CCIP2ETH is iCCIP2ETH {
     iGateway public gateway; // utils and extra functions
     /// @dev constructor initial setup
 
+    event ThankYou(address indexed _addr, uint256 indexed _value);
+    event UpdateGatewayManager(address indexed _old, address indexed _new);
+    event RecordhashChanged(bytes32 indexed _node, bytes _contenthash);
+    event Approved(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
+    event UpdateWrapper(address indexed _new, bool indexed _ok);
+
     constructor() {
         gateway = new GatewayManager(msg.sender);
 
@@ -42,27 +48,25 @@ contract CCIP2ETH is iCCIP2ETH {
         supportsInterface[iCCIP2ETH.recordhash.selector] = true;
         supportsInterface[iCCIP2ETH.setRecordhash.selector] = true;
     }
-    /// @dev revert on fallback
 
+    /// @dev revert on fallback
     fallback() external payable {
         revert();
     }
 
-    event ThankYou(address indexed _addr, uint256 indexed _value);
-    /// @dev reveive donation
-
+    /// @dev receive eth tips
     receive() external payable {
         emit ThankYou(msg.sender, msg.value);
     }
 
+    /// @dev This function allows the gateway manager to update the gateway contract
+    /// @param _gateway The address of the new gateway contract
     function updateGatewayManager(address _gateway) external {
         require(msg.sender == gateway.owner(), "Only Dev");
         require(msg.sender == iGateway(_gateway).owner(), "Invalid Gateway Contract");
         emit UpdateGatewayManager(address(gateway), _gateway);
         gateway = iGateway(_gateway);
     }
-
-    event UpdateGatewayManager(address indexed _old, address indexed _new);
 
     /// @dev ENSIP10 CCIP-read Off-chain Lookup method (https://eips.ethereum.org/EIPS/eip-3668)
     error OffchainLookup(
@@ -80,10 +84,15 @@ contract CCIP2ETH is iCCIP2ETH {
     /// Other Mappings
     mapping(bytes32 => bytes) public recordhash; // contenthash or string url safe base32/36
     mapping(bytes32 => bool) public manager; // ?? there are multiple approved/isApprovedForAll in all ENS
+    
+    /// @dev list of Namewrapper, subdomain wrappers and service contracts
     mapping(address => bool) public isWrapper;
+
+    /// @dev ERC165 Interface Support
     mapping(bytes4 => bool) public supportsInterface;
+    
     /**
-     * @dev sets contenthash
+     * @dev Set Recordhash
      * @param _node ens mode
      * @param _contenthash contenthash to set
      */
@@ -99,8 +108,6 @@ contract CCIP2ETH is iCCIP2ETH {
         recordhash[_node] = _contenthash;
         emit RecordhashChanged(_node, _contenthash);
     }
-
-    event RecordhashChanged(bytes32 indexed _node, bytes _contenthash);
 
     /**
      * @dev ENS Resolve function
@@ -320,8 +327,8 @@ contract CCIP2ETH is iCCIP2ETH {
      * @param signature signature to verify
      * @return bool
      * signature is 64 bytes bytes32(R)+bytes32(VS) compact
-     * or 65 bytes (bytes32(R)+bytes32(S)+uint8(V)) packed
-     * or 96 bytes (bytes32(R)+bytes32(S)+uint256(V)) longest
+     * or 65 bytes (bytes32(R)+bytes32(S)+uint8(V)) encodePacked
+     * or 96 bytes (bytes32(R)+bytes32(S)+uint256(V)) encode
      */
     function validSignature(address _signer, bytes32 digest, bytes calldata signature) external pure returns (bool) {
         require(_signer != address(0), "ZERO_ADDR");
@@ -349,9 +356,12 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /// @dev Resolver/Approval Management functions
-
-    event Approved(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
-
+    /**
+     * @dev Approval function to manage/sign offchain ENS records 
+     * @param _node ens node namehash
+     * @param _signer Address of signer to be aprroved
+     * @param _approved true / false to set approval status
+     */
     function approve(bytes32 _node, address _signer, bool _approved) external {
         manager[keccak256(abi.encodePacked("manager", _node, msg.sender, _signer))] = _approved;
         emit Approved(msg.sender, _node, _signer, _approved);
@@ -375,7 +385,6 @@ contract CCIP2ETH is iCCIP2ETH {
         return _owner == _signer || manager[keccak256(abi.encodePacked("manager", _node, _owner, _signer))];
     }
 
-    event UpdateWrapper(address indexed _new, bool indexed _ok);
     /// @dev dev only ??manage future upgrades in ENS wrapper??
 
     function updateWrapper(address _addr, bool _set) external {

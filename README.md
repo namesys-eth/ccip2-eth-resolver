@@ -15,42 +15,52 @@ Off-chain ENS Records Resolver
 
 ## Specification
 
-### a) CCIP-Read Resolver (EIP2544/EIP3688)
+### a) CCIP2ETH Resolver Contract 
 
-This specification is an extension of ENSIP-10 (EIP2544/EIP3688) using IPNS for off-chain records storage.
+This specification is an extension of `ccip-read` ENSIP-10 (EIP2544/EIP3668) using IPNS, IPFS, IPLD and all ENS contenthash compatible data/storage pointers for off-chain ENS records storage.
 
 ```solidity
 function resolve(bytes calldata name, bytes calldata data) external view returns(bytes memory result)
 ```
 
-where, the `_path` to query an ENS record and the full `_domain` as string shall be decoded from encoded `name` variable using `DNSDecode()` function:
+## b) Record Hash : 
+RecordHash(RH) is `ContentHash` (CH) set by owner of domain.eth in CCIP2ETH resolver. it's fully compatible with all ENS contenthash types and also supports directly using string as bytes in base `16/32/36` format prefixed with `f/b/k` respectively.
 
-```solidity
-function DNSDecode(
-    bytes calldata name
-) public view returns (
-    string memory _domain, string memory _path, string memory _label
-){
-    uint level = 1; // domain heirarchy level
-    uint i = 1; // counter
-    uint len uint8(bytes1(name[:1])); // length of label
-    _label = string(name[1: i += len]); // final value is TLD ".eth"
-    _path = _label; // suffix after /.well-known/
-    _domain = _label; // full domain as string
+eg, `bytes(string("fe5010172..."))` = `bytes(string("f0172..."))` = `bytes(hex"e5010172...")` = `bytes(string("ba...base32"))` = `bytes(string("k5...base36"))` = `bytes(hex"0172...")`. Owners and records managers are free to use their preferred storage type with recordhash formats.
 
-    while(name[i] > 0x0) { // DNS Decode
-        len = uint8(bytes1(name[i: ++i]));
-        _label = string(name[i: i += len]);
-        _domain = string.concat(_domain, ".", _label);
-        _path = string.concat(_label, "/", _path);
-        ++level;
-    }
-}
-```
+- Supported Type/Codec
 
-### b) Off-chain Records Storage Format
+|Type|Format|Prefix|CH|f16|b32|k36|
+|-|-|-|-|-|-|-|
+|IPFS|dag-pb/raw|0xe30101\<70/55>..|✅|✅|✅|✅|
+|IPNS|libp2p-key|0xe5010172..|✅|✅|✅|✅|
+|IPLD|dag-cbor|0xe2010171..|✅|✅|✅|✅|
+|Swarm|swarm-ns|0xe40101f..|✅|✅|🟡|🟡|
+|Onion|-|0xbc03..|✅|✅|❌|❌|
+|Onion3|-|0xbd03..|✅|✅|❌|❌|
+|Skylink|-|0x90b2c6..|✅|✅|❌|❌|
+|Arweave|-|0x90b2ca..|✅|✅|❌|❌|
 
-For this specification to make practical sense, we expect the `contenhash` to be of IPNS type, other storage pointers work out of box too. IPNS hashes are key-based decentralized storage pointers that only need to be added once to on-chain storage by the user. IPNS hashes can in turn serve as proxy and point to upgradeable IPFS or IPLD content. In the parent IPNS directory, the records must be stored in the [RFC-8615](https://www.rfc-editor.org/rfc/rfc8615) compliant `.well-known` directory format. ENS records for any name `sub.domain.eth` must then be stored in JSON format under a [reverse-DNS](https://en.wikipedia.org/wiki/Reverse_domain_name_notation) style directory path using `/` instead of `.` as separator, i.e. in format `ipfs://<hash>/.well-known/eth/domain/sub/<record>.json`.
+
+~~|Base|Prefix|IPFS|IPNS|IPLD|Contenthash|
+|-|-|-|-|-|-|
+|16| |✅|✅|✅|✅|
+|16|**f**|✅|✅|✅|✅|
+|32|**b**|✅|✅|✅|❌|
+|36|**k**|✅|✅|✅|❌|~~
+
+
+## c) Gateway Manager Contract : 
+ GM 
+
+## d) Off-chain Records Storage Format
+ENS records is stored in the [RFC-8615](https://www.rfc-editor.org/rfc/rfc8615) `.well-known` directory as [reverse-DNS](https://en.wikipedia.org/wiki/Reverse_domain_name_notation) style directory path using `/` as directory separator for subdomains. Prefix "_" is used for internal records directory.
+
+e.g, ETH address record for `domain.eth` is stored in `.well-known/eth/domain/_address/60.json` & for `sub.domain.eth` it's stored in `.well-known/eth/domain/sub/_address/60.json`
+
+
+
+ ENS records for any name `sub.domain.eth` must then be stored in JSON format under a [reverse-DNS](https://en.wikipedia.org/wiki/Reverse_domain_name_notation) style directory path using `/` instead of `.` as separator, i.e. in format `ipfs://<hash>/.well-known/eth/domain/sub/<record>.json`.
 
 **1. Some Examples:**
 
@@ -60,10 +70,10 @@ For this specification to make practical sense, we expect the `contenhash` to be
 { data: abi.encode(string("eip155:1/erc1155:0xb32979486938aa9694bfc898f35dbed459f44424/10063")) }
 ```
 
-- ETH address record for `sub.domain.eth` is stored at `https://sub.domain.eth/.well-known/eth/domain/sub/addr-60.json` formatted as
+- ETH address record for `sub.domain.eth` is stored at `https://sub.domain.eth/.well-known/eth/domain/sub/_address/60.json` formatted as
 
 ```solidity
-{ data: abi.encode(<addr-60>) }
+{ data: abi.encode(<_address/60>) }
 ```
 
 Note: If the JSON data is signed by the Registrant of `domain.eth`, it must be prefixed with `bytes4` of `callback` function selector as,
@@ -77,8 +87,8 @@ Note: If the JSON data is signed by the Registrant of `domain.eth`, it must be p
 | Type | Function | JSON file |
 | -- | -- | --- |
 | Text Records ([ENSIP-05](https://docs.ens.domains/ens-improvement-proposals/ensip-5-text-records)) | `text(bytes32 node, string memory key)` | `<key>.json` |
-| Ethereum Address | `addr(bytes32 node)` | `addr-60.json` |
-| Multichain Address ([ENSIP-09](https://docs.ens.domains/ens-improvement-proposals/ensip-9-multichain-address-resolution)) | `addr(bytes32 node, uint coinType)`| `addr-<coinType>.json` |
+| Ethereum Address | `addr(bytes32 node)` | `_address/60.json` |
+| Multichain Address ([ENSIP-09](https://docs.ens.domains/ens-improvement-proposals/ensip-9-multichain-address-resolution)) | `addr(bytes32 node, uint coinType)`| `_address/<coinType>.json` |
 | Public Key | `pubkey(bytes32 node)`| `pubkey.json` |
 | Contenthash ([ENSIP-07](https://docs.ens.domains/ens-improvement-proposals/ensip-7-contenthash-field)) | `contenthash(bytes32 node)` | `contenthash.json` |
 
@@ -100,7 +110,7 @@ Note: If the JSON data is signed by the Registrant of `domain.eth`, it must be p
 ```solidity
 	//...
 
-	funMap[iResolver.addr.selector] = "addr-60"; // eth address
+	funMap[iResolver.addr.selector] = "_address/60"; // eth address
 	funMap[iResolver.pubkey.selector] = "pubkey";
 	funMap[iResolver.name.selector] = "name";
 
