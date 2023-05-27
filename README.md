@@ -17,7 +17,7 @@
 
 ### a) CCIP-Read Resolver (EIP2544/EIP3688)
 
-This specification is an extension of ENSIP-10 (EIP2544/EIP3688) using IPNS for off-chain records storage.
+This specification is an extension of ENSIP-10 (EIP-2544/EIP-3688) using IPNS for off-chain records storage.
 
 ```solidity
 function resolve(bytes calldata name, bytes calldata data) external view returns(bytes memory result)
