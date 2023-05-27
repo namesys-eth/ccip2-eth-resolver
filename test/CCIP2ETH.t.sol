@@ -155,7 +155,7 @@ contract ResolverGoerli is Test {
         );
         resolver.resolve(_encoded, _request);
     }
-    
+
     /// @dev : test full end-to-end resolver
     function testCCIPCallbackLevel2() public {
         bytes[] memory _name = new bytes[](2);
