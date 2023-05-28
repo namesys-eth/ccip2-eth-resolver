@@ -9,8 +9,12 @@ import "./Interface.sol";
  */
 contract GatewayManager is iERC173, iGateway {
     /// Events
-    
+    event AddGateway(string indexed domain);
+    event RemoveGateway(string indexed domain);
+    event UpdateFuncFile(bytes4 _func, string _name);
     /// Errors
+
+    error ContenthashNotImplemented(bytes1 _type);
     error ResolverFunctionNotImplemented(bytes4 func);
 
     /// @dev - Contract owner/multisig address
@@ -29,7 +33,7 @@ contract GatewayManager is iERC173, iGateway {
     string[] public Gateways;
     /// @dev - Resolver function bytes4 selector → Off-chain record filename <name>.json
     mapping(bytes4 => string) public funcMap;
-    
+
     /// @dev - Constructor
     constructor(address _owner) {
         /// @dev - Set owner of contract
@@ -49,10 +53,11 @@ contract GatewayManager is iERC173, iGateway {
 
     /**
      * @dev Selects and construct random gateways for CCIP resolution
-     * @param _path : full path for records.json
-     * @param k : pseudo random seeding
-     * @return gateways : pseudo random list of gateway URLs for CCIP-Read
-     * Gateway URL e.g. https://gateway.tld/ipns/f<ipns-hash-hex>/.well-known/eth/virgil/<records>.json?t1=0x0123456789
+     * @param _recordhash - global recordhash for record storage
+     * @param _path - full path for records.json
+     * @param k - pseudo random seeding
+     * @return gateways - pseudo random list of gateway URLs for CCIP-Read
+     * gateway URL e.g. https://gateway.tld/ipns/f<ipns-hash-hex>/.well-known/eth/virgil/<records>.json?t1=0x0123456789
      */
     function randomGateways(bytes calldata _recordhash, string memory _path, uint256 k)
         public
@@ -95,11 +100,9 @@ contract GatewayManager is iERC173, iGateway {
     }
 
     /**
-     * @dev Converts function bytes4 selector → Off-chain record filename <name>.json
-     * @param _path : full path for records.json
-     * @param k : pseudo random seeding
-     * @return gateways : pseudo random list of gateway URLs for CCIP-Read
-     * Gateway URL e.g. https://gateway.tld/ipns/f<ipns-hash-hex>/.well-known/eth/virgil/<records>.json?t1=0x0123456789
+     * @dev Converts queried resolver function to off-chain record filename
+     * @param data - full path for records.json
+     * @return _jsonPath - path to JSON file containing the queried record
      */
     function funcToJson(bytes calldata data) public view returns (string memory _jsonPath) {
         bytes4 func = bytes4(data[:4]);
@@ -126,6 +129,11 @@ contract GatewayManager is iERC173, iGateway {
         _jsonPath = string.concat(_jsonPath, ".json");
     }
 
+    /**
+     * @dev Converts overflowing recordhash to valid subdomain label
+     * @param _recordhash - overflowing recordhash to convert
+     * @return result - valid subdomain label
+     */
     function formatSubdomain(bytes calldata _recordhash) public pure returns (string memory result) {
         uint256 len = _recordhash.length;
         uint256 pointer = len % 16;
@@ -140,8 +148,9 @@ contract GatewayManager is iERC173, iGateway {
     }
 
     /**
-     * @dev : uint to number string
-     * @param value : uint value
+     * @dev UINT to number string
+     * @param value - UINT value
+     * @return - string formatted UINT
      */
     function uintToString(uint256 value) public pure returns (string memory) {
         if (value == 0) return "0";
@@ -160,8 +169,12 @@ contract GatewayManager is iERC173, iGateway {
             return string(buffer);
         }
     }
-    /// @dev : address to checksum address string
 
+    /**
+     * @dev Converts lowercase address to checksummed address string
+     * @param _addr - lowercase address string
+     * @return - checksummed address
+     */
     function toChecksumAddress(address _addr) public pure returns (string memory) {
         bytes memory _buffer = abi.encodePacked(_addr);
         bytes memory result = new bytes(40); //bytes20*2
@@ -179,8 +192,12 @@ contract GatewayManager is iERC173, iGateway {
         return string.concat("0x", string(result));
     }
 
-    error ContenthashNotImplemented(bytes1 _type);
-
+    /**
+     * @dev Convert range of bytes to hex string
+     * @param _buffer - bytes buffer
+     * @param _start - index to start conversion at (continues till the end)
+     * @return - hex string
+     */
     function bytesToHexString(bytes memory _buffer, uint256 _start) public pure returns (string memory) {
         uint256 len = _buffer.length - _start;
         bytes memory result = new bytes((len) * 2);
@@ -194,36 +211,38 @@ contract GatewayManager is iERC173, iGateway {
         return string(result);
     }
 
-    /// @dev : Gateway Management Functions
-
-    event AddGateway(string indexed domain);
-    event RemoveGateway(string indexed domain);
-    event UpdateFuncFile(bytes4 _func, string _name);
-
+    /// @dev - Gateway Management Functions
+    /**
+     * @dev Adds a new record type by adding its bytes4-to-filename mapping
+     * @param _func - bytes4 of new record type to add
+     * @param _name - string formatted label of function
+     */
     function addFuncMap(bytes4 _func, string calldata _name) external onlyDev {
         funcMap[_func] = _name;
         emit UpdateFuncFile(_func, _name);
     }
 
+    /**
+     * @dev Shows list of all available gateways
+     * @return list - list of gateways
+     */
     function listAllGateways() external view returns (string[] memory list) {
         return Gateways;
     }
 
     /**
      * @dev Add single gateway
-     * @param _domain : new gateway domain
+     * @param _domain - new gateway domain
      */
-
     function addGateway(string calldata _domain) external onlyDev {
         Gateways.push(_domain);
         emit AddGateway(_domain);
     }
 
     /**
-     * @dev add multiple gateways
-     * @param _domains : list of gateway domains to add
+     * @dev Add multiple gateways
+     * @param _domains - list of gateway domains to add
      */
-
     function addGateways(string[] calldata _domains) external onlyDev {
         uint256 len = _domains.length;
         for (uint256 i = 0; i < len; i++) {
@@ -234,7 +253,7 @@ contract GatewayManager is iERC173, iGateway {
 
     /**
      * @dev Remove single gateway
-     * @param _index : gateway index to remove
+     * @param _index - gateway index to remove
      */
     function removeGateway(uint256 _index) external onlyDev {
         require(Gateways.length > 1, "Last Gateway");
@@ -244,8 +263,8 @@ contract GatewayManager is iERC173, iGateway {
     }
 
     /**
-     * @dev Remove gateways from the list
-     * @param _indexes : gateway index to remove
+     * @dev Remove multiple gateways from the list
+     * @param _indexes - gateway indices to remove
      */
     function removeGateways(uint256[] memory _indexes) external onlyDev {
         uint256 len = _indexes.length;
@@ -270,12 +289,12 @@ contract GatewayManager is iERC173, iGateway {
 
     /**
      * @dev Replace multiple gateways
-     * @param _indexes : gateway index to replace
-     * @param _domains : new gateway domain.tld
+     * @param _indexes : gateway indices to replace
+     * @param _domains : new list of gateways [domain1.tld, domain2.tld...]
      */
     function replaceGateways(uint256[] calldata _indexes, string[] calldata _domains) external onlyDev {
         uint256 len = _indexes.length;
-        require(len == _domains.length, "Bad input lengths");
+        require(len == _domains.length, "BAD_LENGTH");
         for (uint256 i = 0; i < len; i++) {
             emit RemoveGateway(Gateways[_indexes[i]]);
             Gateways[_indexes[i]] = _domains[i];
@@ -283,8 +302,8 @@ contract GatewayManager is iERC173, iGateway {
         }
     }
     /**
-     * Transfer ownership of resolver contract
-     * @param _newOwner : address of new multisig
+     * @dev Transfer ownership of resolver contract
+     * @param _newOwner - address of new owner/multisig
      */
 
     function transferOwnership(address _newOwner) external onlyDev {
@@ -293,25 +312,25 @@ contract GatewayManager is iERC173, iGateway {
     }
 
     /**
-     * @dev withdraw Ether to owner
+     * @dev Withdraw Ether to owner; to be used for tips or in case some Ether gets locked in the contract
      */
     function withdraw() external {
         payable(owner).transfer(THIS.balance);
     }
 
     /**
-     * @dev to be used in case some fungible tokens get locked in the contract
-     * @param _token : token address
-     * @param _balance : amount to release
+     * @dev To be used for tips or in case some fungible tokens get locked in the contract
+     * @param _token - token address
+     * @param _balance - amount to release
      */
     function withdraw(address _token, uint256 _balance) external {
         iToken(_token).transferFrom(THIS, owner, _balance);
     }
 
     /**
-     * @dev to be used in case some non-fungible tokens get locked in the contract
-     * @param _token : token address
-     * @param _id : token ID to release
+     * @dev To be used for tips or in case some non-fungible tokens get locked in the contract
+     * @param _token - token address
+     * @param _id - token ID to release
      */
     function safeWithdraw(address _token, uint256 _id) external {
         iToken(_token).safeTransferFrom(THIS, owner, _id);
