@@ -3,50 +3,40 @@ pragma solidity >0.8.0 <0.9.0;
 
 import "./Interface.sol";
 
-/**
- * @title CCIP2ETH Gateway Manager
- * @author freetib.eth, sshmatrix.eth
- */
 contract GatewayManager is iERC173, iGateway {
-    /// Events
-    
-    /// Errors
-    error ResolverFunctionNotImplemented(bytes4 func);
+    address immutable THIS = address(this);
 
-    /// @dev - Contract owner/multisig address
+    /// @dev : contract owner/multisig address
     address public owner;
 
-    /// @dev - Modifer to allow only dev/admin access
     modifier onlyDev() {
-        require(msg.sender == owner, "ONLY_DEV");
+        require(msg.sender == owner, "Only Dev");
         _;
     }
 
-    address immutable THIS = address(this);
-    /// @dev - Primary gateway domain
-    string public PrimaryGateway = "ipfs2.eth.limo";
-    /// @dev - List of secondary gateway domains
+    /// @dev : list of gateway domain
     string[] public Gateways;
-    /// @dev - Resolver function bytes4 selector → Off-chain record filename <name>.json
-    mapping(bytes4 => string) public funcMap;
-    
-    /// @dev - Constructor
+
+    string public PrimaryGateway = "ipfs2.eth.limo";
+
+    mapping(bytes4 => string) public funcMap; // setter function?
+
+    error ResolverFunctionNotImplemented(bytes4 func);
+
     constructor(address _owner) {
-        /// @dev - Set owner of contract
         owner = payable(_owner);
-        /// @dev - Define all default records
+
         funcMap[iResolver.addr.selector] = "_address/60";
         funcMap[iResolver.pubkey.selector] = "pubkey";
         funcMap[iResolver.name.selector] = "name";
         funcMap[iResolver.contenthash.selector] = "contenthash";
         funcMap[iResolver.zonehash.selector] = "_dnsrecord/zonehash";
-        /// @dev - Set initial list of secondary gateways
+
         Gateways.push("dweb.link");
         emit AddGateway("dweb.link");
         Gateways.push("ipfs.io");
         emit AddGateway("ipfs.io");
     }
-
     /**
      * @dev Selects and construct random gateways for CCIP resolution
      * @param _path : full path for records.json
@@ -54,6 +44,7 @@ contract GatewayManager is iERC173, iGateway {
      * @return gateways : pseudo random list of gateway URLs for CCIP-Read
      * Gateway URL e.g. https://gateway.tld/ipns/f<ipns-hash-hex>/.well-known/eth/virgil/<records>.json?t1=0x0123456789
      */
+
     function randomGateways(bytes calldata _recordhash, string memory _path, uint256 k)
         public
         view
@@ -93,14 +84,8 @@ contract GatewayManager is iERC173, iGateway {
             }
         }
     }
+    /// @dev Resolver function bytes4 selector → Off-chain record filename <name>.json
 
-    /**
-     * @dev Converts function bytes4 selector → Off-chain record filename <name>.json
-     * @param _path : full path for records.json
-     * @param k : pseudo random seeding
-     * @return gateways : pseudo random list of gateway URLs for CCIP-Read
-     * Gateway URL e.g. https://gateway.tld/ipns/f<ipns-hash-hex>/.well-known/eth/virgil/<records>.json?t1=0x0123456789
-     */
     function funcToJson(bytes calldata data) public view returns (string memory _jsonPath) {
         bytes4 func = bytes4(data[:4]);
         if (bytes(funcMap[func]).length > 0) {

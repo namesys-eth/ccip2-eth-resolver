@@ -2,91 +2,80 @@
 pragma solidity >=0.8.15;
 
 import "./GatewayManager.sol";
-
 /**
  * @title ENS Off-chain Records Manager
  * @author freetib.eth, sshmatrix.eth
  */
-contract CCIP2ETH is iCCIP2ETH {
-    /// Events
-    event ThankYou(address indexed addr, uint256 indexed value);
-    event UpdateGatewayManager(address indexed oldAddr, address indexed newAddr);
-    event RecordhashChanged(bytes32 indexed node, bytes contenthash);
-    event UpdateWrapper(address indexed newAddr, bool indexed status);
-    event Approved(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
-    /// Errors
-    error InvalidSignature(string message);
-    error NotAuthorized(bytes32 node, address addr);
-    error ContenthashNotSet(bytes32 node);
-    /// ENSIP-10 CCIP-read Off-Chain Lookup method (https://eips.ethereum.org/EIPS/eip-3668)
-    error OffchainLookup(
-        address _from, // sender (this contract)
-        string[] _gateways, // CCIP gateway URLs
-        bytes _data, // {data} field; request value for HTTP call
-        bytes4 _callbackFunction, // callback function
-        bytes _extradata // callback extra data
-    );
 
-    /// @dev - ONLY TESTNET
-    /// TODO - Remove before Mainnet deployment
+contract CCIP2ETH is iCCIP2ETH {
+    /// @notice ONLY TESTNET
+    /// TODO Remove before mainnet deployment
     function immolate() external {
         address _owner = gateway.owner();
         require(msg.sender == _owner, "NOT_OWNER");
         selfdestruct(payable(_owner));
     }
 
-    /// @dev - ENS Legacy Registry
+    /// @dev ENS contract
     iENS public immutable ENS = iENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
-    /// @dev - CCIP-Read Gateways
-    iGateway public gateway;
+    iGateway public gateway; // utils and extra functions
+    /// @dev constructor initial setup
 
-    /// @dev - Constructor
     constructor() {
         gateway = new GatewayManager(msg.sender);
 
-        /// TODO - Set IPFS2.eth resolver here
-        //isWrapper[address(gateway)] = true; 
-        //emit UpdateWrapper(address(gateway), true);
+        //isWrapper[address(gateway)] = true; // set ipfs2.eth resolver here
+        //emit UpdateWrapper(address(gateway), true); // set ipfs2.eth resolver here
 
-        /// @dev - Current contract as Wrapper [?]
         isWrapper[address(this)] = true;
         emit UpdateWrapper(address(this), true);
-        /// @dev - ENS Mainnet Wrapper [?]
+
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
         emit UpdateWrapper(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401, true);
-        /// @dev - ENS Goerli Wrapper; remove before Mainnet deploy [?]
-        isWrapper[0x114D4603199df73e7D157787f8778E21fCd13066] = true;
+
+        isWrapper[0x114D4603199df73e7D157787f8778E21fCd13066] = true; // goerli
         emit UpdateWrapper(0x114D4603199df73e7D157787f8778E21fCd13066, true);
-        /// @dev - Set necessary interfaces
+
         supportsInterface[iERC165.supportsInterface.selector] = true;
         supportsInterface[iENSIP10.resolve.selector] = true;
         supportsInterface[type(iERC173).interfaceId] = true;
         supportsInterface[iCCIP2ETH.recordhash.selector] = true;
         supportsInterface[iCCIP2ETH.setRecordhash.selector] = true;
     }
-    
-    /// @dev - Revert on fallback
+    /// @dev revert on fallback
+
     fallback() external payable {
         revert();
     }
 
-    /// @dev - Receive donation
+    event ThankYou(address indexed _addr, uint256 indexed _value);
+    /// @dev reveive donation
+
     receive() external payable {
         emit ThankYou(msg.sender, msg.value);
     }
 
-
     function updateGatewayManager(address _gateway) external {
-        require(msg.sender == gateway.owner(), "ONLY_DEV");
-        require(msg.sender == iGateway(_gateway).owner(), "INVALID_GATEWAY_CONTRACT");
+        require(msg.sender == gateway.owner(), "Only Dev");
+        require(msg.sender == iGateway(_gateway).owner(), "Invalid Gateway Contract");
         emit UpdateGatewayManager(address(gateway), _gateway);
         gateway = iGateway(_gateway);
     }
 
-    
+    event UpdateGatewayManager(address indexed _old, address indexed _new);
 
-    
-    
+    /// @dev ENSIP10 CCIP-read Off-chain Lookup method (https://eips.ethereum.org/EIPS/eip-3668)
+    error OffchainLookup(
+        address _addr, // callback contract)
+        string[] _gateways, // CCIP gateway URLs
+        bytes _data, // {data} field; request value for HTTP call
+        bytes4 _callbackFunction, // callback function
+        bytes _extradata // callback extra data
+    );
+
+    error InvalidSignature(string _message);
+    error NotAuthorized(bytes32 _node, address _addr);
+    error ContenthashNotSet(bytes32 _node);
 
     /// Other Mappings
     mapping(bytes32 => bytes) public recordhash; // contenthash or string url safe base32/36
@@ -98,6 +87,7 @@ contract CCIP2ETH is iCCIP2ETH {
      * @param _node ens mode
      * @param _contenthash contenthash to set
      */
+
     function setRecordhash(bytes32 _node, bytes calldata _contenthash) external {
         address _owner = ENS.owner(_node);
         if (isWrapper[_owner]) {
@@ -110,7 +100,7 @@ contract CCIP2ETH is iCCIP2ETH {
         emit RecordhashChanged(_node, _contenthash);
     }
 
-   
+    event RecordhashChanged(bytes32 indexed _node, bytes _contenthash);
 
     /**
      * @dev EIP-2544/EIP-3668 core resolve() function; aka CCIP-Read
@@ -359,6 +349,8 @@ contract CCIP2ETH is iCCIP2ETH {
 
     /// @dev Resolver/Approval Management functions
 
+    event Approved(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
+
     function approve(bytes32 _node, address _signer, bool _approved) external {
         manager[keccak256(abi.encodePacked("manager", _node, msg.sender, _signer))] = _approved;
         emit Approved(msg.sender, _node, _signer, _approved);
@@ -382,7 +374,7 @@ contract CCIP2ETH is iCCIP2ETH {
         return _owner == _signer || manager[keccak256(abi.encodePacked("manager", _node, _owner, _signer))];
     }
 
-    
+    event UpdateWrapper(address indexed _new, bool indexed _ok);
     /// @dev dev only ??manage future upgrades in ENS wrapper??
 
     function updateWrapper(address _addr, bool _set) external {
