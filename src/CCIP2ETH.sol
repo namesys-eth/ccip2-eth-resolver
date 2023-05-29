@@ -15,7 +15,6 @@ contract CCIP2ETH is iCCIP2ETH {
     event UpdateWrapper(address indexed newAddr, bool indexed status);
     event Approved(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
     /// Errors
-
     error InvalidSignature(string message);
     error NotAuthorized(bytes32 node, address addr);
     error ContenthashNotSet(bytes32 node);
