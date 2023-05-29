@@ -8,24 +8,6 @@ import "./GatewayManager.sol";
  * @author freetib.eth, sshmatrix.eth
  */
 contract CCIP2ETH is iCCIP2ETH {
-    /// Events
-    event ThankYou(address indexed addr, uint256 indexed value);
-    event UpdateGatewayManager(address indexed oldAddr, address indexed newAddr);
-    event RecordhashChanged(bytes32 indexed node, bytes contenthash);
-    event UpdateWrapper(address indexed newAddr, bool indexed status);
-    event Approved(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
-    /// Errors
-    error InvalidSignature(string message);
-    error NotAuthorized(bytes32 node, address addr);
-    error ContenthashNotSet(bytes32 node);
-    /// ENSIP-10 CCIP-read Off-Chain Lookup method (https://eips.ethereum.org/EIPS/eip-3668)
-    error OffchainLookup(
-        address _from, // sender (this contract)
-        string[] _gateways, // CCIP gateway URLs
-        bytes _data, // {data} field; request value for HTTP call
-        bytes4 _callbackFunction, // callback function
-        bytes _extradata // callback extra data
-    );
 
     /// @dev - ONLY TESTNET
     /// TODO - Remove before Mainnet deployment
@@ -34,6 +16,28 @@ contract CCIP2ETH is iCCIP2ETH {
         require(msg.sender == _owner, "NOT_OWNER");
         selfdestruct(payable(_owner));
     }
+
+    /// Events
+    event ThankYou(address indexed addr, uint256 indexed value);
+    event UpdateGatewayManager(address indexed oldAddr, address indexed newAddr);
+    event RecordhashChanged(bytes32 indexed node, bytes contenthash);
+    event UpdateWrapper(address indexed newAddr, bool indexed status);
+    event Approved(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
+    event UpdateSupportedInterface(bytes4 indexed sig, bool indexed status);
+    
+    /// Errors
+    error InvalidSignature(string message);
+    error NotAuthorized(bytes32 node, address addr);
+    error ContenthashNotSet(bytes32 node);
+
+    /// ENSIP-10 CCIP-read Off-Chain Lookup method (https://eips.ethereum.org/EIPS/eip-3668)
+    error OffchainLookup(
+        address _from, // sender (this contract)
+        string[] _gateways, // CCIP gateway URLs
+        bytes _data, // {data} field; request value for HTTP call
+        bytes4 _callbackFunction, // callback function
+        bytes _extradata // callback extra data
+    );
 
     /// @dev - ENS Legacy Registry
     iENS public immutable ENS = iENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
@@ -53,13 +57,18 @@ contract CCIP2ETH is iCCIP2ETH {
     constructor() {
         gateway = new GatewayManager(msg.sender);
 
-        /// @dev - Sets IPFS2.eth resolver as Wrapper [?]
-        //isWrapper[address(gateway)] = true;
-        //emit UpdateWrapper(address(gateway), true);
+        /// @dev - IPFS2.eth resolver as Redirect wrapper
+        /// @notice iswrapper[] is used for wrappers and internal service resolvers
+        /// e.g., ipfs2.eth resolver is msg.sender if it's redirecting specific calls
+        /// not required if we don't use universal resolver mode
+        //isWrapper[address(0xb4BA47783Ff613ec55c9ECdaF38fCF29D7632048)] = true;
+        //emit UpdateWrapper(address(0xb4BA47783Ff613ec55c9ECdaF38fCF29D7632048), true);
 
-        /// @dev - Sets current contract as Wrapper [?]
-        isWrapper[address(this)] = true;
-        emit UpdateWrapper(address(this), true);
+        /// @dev - Sets current contract as Wrapper
+        /// iswrapper is used to filter service resolvers and wrappers from other contract/EOA types
+        /// not required if we don't use universal resolver mode
+        //isWrapper[address(this)] = true;
+        //emit UpdateWrapper(address(this), true);
 
         /// @dev - Sets ENS Mainnet wrapper as Wrapper
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
@@ -99,7 +108,7 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /**
-     * @dev Sets global recordhash
+     * @dev Sets recordhash for a node, only ENS owner/approved address can set
      * @param _node - namehash of ENS (node)
      * @param _contenthash - contenthash to set as recordhash
      */
@@ -148,13 +157,17 @@ contract CCIP2ETH is iCCIP2ETH {
                     _node = _namehash;
                     _recordhash = recordhash[_namehash];
                 } else {
+                    // @dev : break = if domain.eth record doesn't exists, 
+                    // there'll be no sub.domain.eth records
+                    // no break = extra feature if we allow owners of domain.eth
+                    // ..to set recordhash for subN..sub2.sub1.domain.eth even without sub1.domain.eth records in ENS
                     //_recordhash = recordhash[_namehash];
                     break;
                 }
             }
             //bytes4 func = bytes4(data[:4]);
             //address _resolver = ENS.resolver(_node);
-            //console.logAddress(_resolver);
+            /// @dev : universal resolver mode is disabled as it's not really required
             /*
             if (!isWrapper[_resolver]) {
                 // universal redirect mode
@@ -264,7 +277,7 @@ contract CCIP2ETH is iCCIP2ETH {
                 revert InvalidSignature("BAD_APPROVAL_SIG");
             }
         } /*else if (_type == iResolver.???.selector) {
-            // custodial subdomain
+            // @dev custodial subdomain
             // redirect with recursive ccip-read
             // signer = assigned
             // signature is from owner
@@ -393,6 +406,16 @@ contract CCIP2ETH is iCCIP2ETH {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
         return _owner == _signer || manager[keccak256(abi.encodePacked("manager", _node, _owner, _signer))];
+    }
+    /**
+     * @dev Updates Supported interface 
+     * @param _sig - 4 bytes interface selector
+     * @param _set - state to set for selector
+     */
+    function updateSupportedInterface(bytes4 _sig, bool _set) external {
+        require(msg.sender == gateway.owner(), "ONLY_DEV");
+        supportsInterface[_sig] = _set;
+        emit UpdateSupportedInterface(_sig, _set);
     }
 
     /**
