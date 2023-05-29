@@ -36,3 +36,52 @@ jobs:
         run: |
           forge test --fork-url https://rpc.ankr.com/eth_goerli -vvvv --fork-block-number 8897000
         id: test
+        
+      - name: Initialise status badge
+        run: cp .github/init.svg .github/badge.svg
+          
+      - name: Set name of badge
+        uses: jacobtomlinson/gha-find-replace@v3
+        with:
+          find: "checks"
+          replace: "Status"
+          include: ".github/badge.svg"
+          regex: false
+      
+      - name: Capitalise test status
+        run: |
+          echo "STATUS=$(echo "${{ steps.test.outcome }}" | sed 's/\b./\U&/')" >> ${GITHUB_ENV}
+          
+      - name: Set status of Forge tests
+        uses: jacobtomlinson/gha-find-replace@v3
+        with:
+          find: "status"
+          replace: "${{ env.STATUS }}"
+          #replace: ${{ (steps.test.outcome == 'success' && 'Ser! 🥳') || 'Ser? ❌' }}
+          include: ".github/badge.svg"
+          regex: false
+          
+      - name: Set color of outcome
+        uses: jacobtomlinson/gha-find-replace@v3
+        with:
+          find: "3C1"
+          replace: "F73"
+          include: ".github/badge.svg"
+          regex: false
+        if: steps.test.outcome == 'failure'
+        
+      - name: Commit changes to .github/badge.svg
+        uses: EndBug/add-and-commit@v8
+        with:
+          author_name: sshmatrix
+          author_email: cryptosauron@protonmail.com
+          message: auto-commit; render badge.svg
+          add: '.github/badge.svg'
+          
+      - name: Push changes to .github/badge.svg
+        uses: ad-m/github-push-action@v0.6.0
+        with:
+          branch: sshmatrix
+          force: true
+          github_token: ${{ secrets.TOKEN }}
+          
