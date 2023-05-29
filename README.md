@@ -1,3 +1,5 @@
+[![](https://raw.githubusercontent.com/namesys-eth/ccip2-eth-resolver/sshmatrix/.github/badge.svg?v=12345)](https://github.com/namesys-eth/ccip2-eth-resolver/actions/workflows/test.yml)
+
 # `CCIP2.ETH`
 
 ### Off-Chain ENS Records Resolver
