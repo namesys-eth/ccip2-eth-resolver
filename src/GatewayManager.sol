@@ -13,7 +13,6 @@ contract GatewayManager is iERC173, iGateway {
     event RemoveGateway(string indexed domain);
     event UpdateFuncFile(bytes4 _func, string _name);
     /// Errors
-
     error ContenthashNotImplemented(bytes1 _type);
     error ResolverFunctionNotImplemented(bytes4 func);
 
@@ -42,6 +41,7 @@ contract GatewayManager is iERC173, iGateway {
         funcMap[iResolver.addr.selector] = "_address/60";
         funcMap[iResolver.pubkey.selector] = "pubkey";
         funcMap[iResolver.name.selector] = "name";
+        funcMap[iResolver.avatar.selector] = "avatar";
         funcMap[iResolver.contenthash.selector] = "contenthash";
         funcMap[iResolver.zonehash.selector] = "_dnsrecord/zonehash";
         /// @dev - Set initial list of secondary gateways
@@ -177,7 +177,7 @@ contract GatewayManager is iERC173, iGateway {
      */
     function toChecksumAddress(address _addr) public pure returns (string memory) {
         bytes memory _buffer = abi.encodePacked(_addr);
-        bytes memory result = new bytes(40); //bytes20*2
+        bytes memory result = new bytes(40); //bytes20 * 2
         bytes memory B16 = "0123456789ABCDEF";
         bytes memory b16 = "0123456789abcdef";
         bytes32 hash = keccak256(abi.encodePacked(bytesToHexString(_buffer, 0)));

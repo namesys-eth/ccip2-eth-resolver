@@ -123,6 +123,7 @@ contract CCIP2ETH is iCCIP2ETH {
      */
     function resolve(bytes calldata name, bytes calldata data) external view returns (bytes memory result) {
         unchecked {
+            /// @dev - DNSDecode() routine
             uint256 index = 1;
             uint256 n = 1;
             uint256 len = uint8(bytes1(name[:1]));
@@ -137,6 +138,7 @@ contract CCIP2ETH is iCCIP2ETH {
                 _path = string.concat(string(_labels[index++]), "/", _path);
             }
 
+            /// @notice - '.eth' checker
             //bool dotETH = (keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[index - 1]))) == roothash);
 
             bytes32 _namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[--index])));
@@ -258,7 +260,7 @@ contract CCIP2ETH is iCCIP2ETH {
                             "\x19Ethereum Signed Message:\n", gateway.uintToString(bytes(_req).length), _req
                         )
                     ),
-                    _approved
+                    signature
                 )
             ) {
                 revert InvalidSignature("BAD_APPROVAL_SIG");
@@ -328,6 +330,7 @@ contract CCIP2ETH is iCCIP2ETH {
 
     /**
      * @dev Checks if a signature is valid
+     * @param _signer - signer of message
      * @param digest - hash of signed message
      * @param signature - compact signature to verify
      * @return bool
