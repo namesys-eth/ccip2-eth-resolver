@@ -13,6 +13,7 @@ contract GatewayManager is iERC173, iGateway {
     event RemoveGateway(string indexed domain);
     event UpdateFuncFile(bytes4 _func, string _name);
     /// Errors
+
     error ContenthashNotImplemented(bytes1 _type);
     error ResolverFunctionNotImplemented(bytes4 func);
 
@@ -41,7 +42,6 @@ contract GatewayManager is iERC173, iGateway {
         funcMap[iResolver.addr.selector] = "_address/60";
         funcMap[iResolver.pubkey.selector] = "pubkey";
         funcMap[iResolver.name.selector] = "name";
-        funcMap[iResolver.avatar.selector] = "avatar";
         funcMap[iResolver.contenthash.selector] = "contenthash";
         funcMap[iResolver.zonehash.selector] = "_dnsrecord/zonehash";
         /// @dev - Set initial list of secondary gateways
