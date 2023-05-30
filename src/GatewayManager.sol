@@ -177,7 +177,7 @@ contract GatewayManager is iERC173, iGateway {
      */
     function toChecksumAddress(address _addr) public pure returns (string memory) {
         bytes memory _buffer = abi.encodePacked(_addr);
-        bytes memory result = new bytes(40); //bytes20*2
+        bytes memory result = new bytes(40); //bytes20 * 2
         bytes memory B16 = "0123456789ABCDEF";
         bytes memory b16 = "0123456789abcdef";
         bytes32 hash = keccak256(abi.encodePacked(bytesToHexString(_buffer, 0)));
