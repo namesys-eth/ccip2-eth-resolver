@@ -45,7 +45,7 @@ interface iGateway is iERC173 {
     function funcToJson(bytes calldata data) external view returns (string memory _jsonPath);
     function listAllGateways() external view returns (string[] memory list);
     function toChecksumAddress(address _addr) external pure returns (string memory);
-    //function fallbackCheck(bytes4 _type, ) external view returns(bytes memory);
+    function fallbackCheck(bytes4 _type) external view returns (bytes memory);
     /// write functions
     function addFuncMap(bytes4 _func, string calldata _name) external;
     function addGateway(string calldata _domain) external;

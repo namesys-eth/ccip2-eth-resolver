@@ -166,8 +166,8 @@ contract CCIP2ETH is iCCIP2ETH {
                     // there'll be no sub.domain.eth records
                     // no break = extra feature if we allow owners of domain.eth
                     // ..to set recordhash for subN..sub2.sub1.domain.eth even without sub1.domain.eth records in ENS
-                    //_recordhash = recordhash[_namehash];
-                    break;
+                    _recordhash = recordhash[_namehash];
+                    //break;
                 }
             }
             /// @dev : universal resolver mode is disabled as it's not really required
