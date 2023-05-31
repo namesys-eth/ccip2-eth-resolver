@@ -66,7 +66,7 @@ contract GatewayManager is iERC173, iGateway {
     {
         unchecked {
             uint256 gLen = Gateways.length;
-            uint256 len = (gLen / 2) + 1;
+            uint256 len = (gLen / 2) + 2;
             if (len > 4) len = 4;
             gateways = new string[](len);
             uint256 i;
@@ -76,22 +76,20 @@ contract GatewayManager is iERC173, iGateway {
             string memory _fullPath;
             bytes1 _prefix = _recordhash[0];
             if (_prefix == 0xe2) {
-                _fullPath = string.concat("/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, "&t={data}");
+                _fullPath = string.concat(
+                    "/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, "?format=dag-cbor&t={data}"
+                );
             } else if (_prefix == 0xe5) {
                 _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path, "?t={data}");
             } else if (_prefix == 0xe3) {
                 _fullPath = string.concat("/ipfs/f", bytesToHexString(_recordhash, 2), _path, "?t={data}");
+            } else if (_prefix == bytes1("k")) {
+                _fullPath = string.concat("/ipns/", string(_recordhash), _path);
+            } else if (bytes2(_recordhash[:2]) == bytes2("ba")) {
+                _fullPath = string.concat("/ipfs/", string(_recordhash), _path);
             } else {
-                //if (_prefix == bytes1("k")) {
-                //    _fullPath = string.concat("/ipns/", string(_recordhash), _path);
-                //} else if (bytes2(_recordhash[:2]) == bytes2("ba")) {
-                //    _fullPath = string.concat("/ipfs/", string(_recordhash), _path);
-                //} else {
                 revert("UNSUPPORTED_RECORDHASH");
-                //}
             }
-
-            //(( || _prefix == bytes1("k"))? "/ipns/f" : "/ipfs/f"), bytesToHexString(_recordhash, 2), _path
             while (i < len) {
                 k = uint256(keccak256(abi.encodePacked(block.number * i, k)));
                 gateways[i++] = string.concat("https://", Gateways[k % gLen], _fullPath);
@@ -117,12 +115,17 @@ contract GatewayManager is iERC173, iGateway {
                 string.concat("_interface/0x", bytesToHexString(abi.encodePacked(abi.decode(data[36:], (bytes4))), 0));
         } else if (func == iResolver.ABI.selector) {
             _jsonPath = string.concat("_abi/", uintToString(abi.decode(data[36:], (uint256))));
-        } else if (func == iResolver.dnsRecord.selector) {
-            /// @dev : TODO, use latest ENS codes/ENSIP for DNS records
-            (bytes32 _name, uint16 resource) = abi.decode(data[36:], (bytes32, uint16));
-            _jsonPath = string.concat(
-                "_dnsrecord/0x", bytesToHexString(abi.encodePacked(_name), 0), "/", uintToString(resource)
-            );
+        } else if (func == iResolver.dnsRecord.selector || func == iOverloadResolver.dnsRecord.selector) {
+            // e.g, `.well-known/eth/domain/_dnsrecord/<resource>.json`
+            bytes memory _name;
+            uint256 resource;
+            if (data.length == 100) {
+                // 4+32+32+32
+                (, resource) = abi.decode(data[36:], (bytes32, uint256)); // actual uint16
+            } else {
+                (, resource) = abi.decode(data[36:], (bytes, uint256));
+            }
+            _jsonPath = string.concat("_dnsrecord/", uintToString(resource));
         } else {
             revert ResolverFunctionNotImplemented(func);
         }
@@ -135,12 +138,11 @@ contract GatewayManager is iERC173, iGateway {
      * @return result - valid subdomain label
      */
     function formatSubdomain(bytes calldata _recordhash) public pure returns (string memory result) {
+        if (_recordhash[0] == bytes1("k") || _recordhash[0] == bytes1("b")) {
+            return string(_recordhash);
+        }
         uint256 len = _recordhash.length;
         uint256 pointer = len % 16;
-        //bytes1 prefix = _recordhash[0];
-        //if (prefix == bytes1("b") || prefix == bytes1("k")) {
-        //    return string(_recordhash);
-        //}
         result = string.concat(bytesToHexString(_recordhash[:pointer], 0));
         while (pointer < len) {
             result = string.concat(result, ".", bytesToHexString(_recordhash[pointer:pointer += 16], 0));
@@ -240,18 +242,6 @@ contract GatewayManager is iERC173, iGateway {
     }
 
     /**
-     * @dev Add multiple gateways
-     * @param _domains - list of gateway domains to add
-     */
-    function addGateways(string[] calldata _domains) external onlyDev {
-        uint256 len = _domains.length;
-        for (uint256 i = 0; i < len; i++) {
-            Gateways.push(_domains[i]);
-            emit AddGateway(_domains[i]);
-        }
-    }
-
-    /**
      * @dev Remove single gateway
      * @param _index - gateway index to remove
      */
@@ -260,20 +250,6 @@ contract GatewayManager is iERC173, iGateway {
         emit RemoveGateway(Gateways[_index]);
         Gateways[_index] = Gateways[Gateways.length - 1];
         Gateways.pop();
-    }
-
-    /**
-     * @dev Remove multiple gateways from the list
-     * @param _indexes - gateway indices to remove
-     */
-    function removeGateways(uint256[] memory _indexes) external onlyDev {
-        uint256 len = _indexes.length;
-        require(Gateways.length > len, "Last Gateway");
-        for (uint256 i = 0; i < len; i++) {
-            emit RemoveGateway(Gateways[_indexes[i]]);
-            Gateways[_indexes[i]] = Gateways[Gateways.length - 1];
-            Gateways.pop();
-        }
     }
 
     /**
@@ -287,20 +263,6 @@ contract GatewayManager is iERC173, iGateway {
         emit AddGateway(_domain);
     }
 
-    /**
-     * @dev Replace multiple gateways
-     * @param _indexes : gateway indices to replace
-     * @param _domains : new list of gateways [domain1.tld, domain2.tld...]
-     */
-    function replaceGateways(uint256[] calldata _indexes, string[] calldata _domains) external onlyDev {
-        uint256 len = _indexes.length;
-        require(len == _domains.length, "BAD_LENGTH");
-        for (uint256 i = 0; i < len; i++) {
-            emit RemoveGateway(Gateways[_indexes[i]]);
-            Gateways[_indexes[i]] = _domains[i];
-            emit AddGateway(_domains[i]);
-        }
-    }
     /**
      * @dev Transfer ownership of resolver contract
      * @param _newOwner - address of new owner/multisig

@@ -4,11 +4,13 @@ pragma solidity >=0.8.15;
 import "./GatewayManager.sol";
 
 /**
- * @title ENS Off-chain Records Manager
+ * @title Off-Chain ENS Records Manager
  * @author freetib.eth, sshmatrix.eth
+ * Github : https://github.com/namesys-eth/ccip2-eth-resolver
+ * Client : htpps://ccip2.eth.limo
+ * https://namesys.eth.limo
  */
 contract CCIP2ETH is iCCIP2ETH {
-
     /// @dev - ONLY TESTNET
     /// TODO - Remove before Mainnet deployment
     function immolate() external {
@@ -24,7 +26,7 @@ contract CCIP2ETH is iCCIP2ETH {
     event UpdateWrapper(address indexed newAddr, bool indexed status);
     event Approved(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
     event UpdateSupportedInterface(bytes4 indexed sig, bool indexed status);
-    
+
     /// Errors
 
     error InvalidSignature(string message);
@@ -160,7 +162,7 @@ contract CCIP2ETH is iCCIP2ETH {
                     _node = _namehash;
                     _recordhash = recordhash[_namehash];
                 } else {
-                    // @dev : break = if domain.eth record doesn't exists, 
+                    // @dev : break = if domain.eth record doesn't exists,
                     // there'll be no sub.domain.eth records
                     // no break = extra feature if we allow owners of domain.eth
                     // ..to set recordhash for subN..sub2.sub1.domain.eth even without sub1.domain.eth records in ENS
@@ -168,32 +170,32 @@ contract CCIP2ETH is iCCIP2ETH {
                     break;
                 }
             }
-            //bytes4 func = bytes4(data[:4]);
-            //address _resolver = ENS.resolver(_node);
             /// @dev : universal resolver mode is disabled as it's not really required
             /*
-            if (!isWrapper[_resolver]) {
-                // universal redirect mode
-                if (iERC165(_resolver).supportsInterface(iERC165.supportsInterface.selector)) {
-                    if (iERC165(_resolver).supportsInterface(iENSIP10.resolve.selector)) {
-                        return iENSIP10(_resolver).resolve(name, data);
-                    } else if (iERC165(_resolver).supportsInterface(func)) {
-                        bool ok;
-                        (ok, result) = _resolver.staticcall(data);
-                        if (!ok || result.length == 0) {
-                            // || (result.length == 32 && bytes32(result) == 0x0)) {
-                            //? default error/profile page
-                            if (func == iResolver.contenthash.selector) {
-                                return abi.encode(recordhash[bytes32(uint256(404))]);
-                            } else {
-                                revert("BAD_RESOLVER");
+                //bytes4 func = bytes4(data[:4]);
+                //address _resolver = ENS.resolver(_node);
+                if (!isWrapper[_resolver]) {
+                    // universal redirect mode
+                    if (iERC165(_resolver).supportsInterface(iERC165.supportsInterface.selector)) {
+                        if (iERC165(_resolver).supportsInterface(iENSIP10.resolve.selector)) {
+                            return iENSIP10(_resolver).resolve(name, data);
+                        } else if (iERC165(_resolver).supportsInterface(func)) {
+                            bool ok;
+                            (ok, result) = _resolver.staticcall(data);
+                            if (!ok || result.length == 0) {
+                                // || (result.length == 32 && bytes32(result) == 0x0)) {
+                                //? default error/profile page
+                                if (func == iResolver.contenthash.selector) {
+                                    return abi.encode(recordhash[bytes32(uint256(404))]);
+                                } else {
+                                    revert("BAD_RESOLVER");
+                                }
                             }
+                            return abi.encode(result);
                         }
-                        return abi.encode(result);
                     }
+                    revert("INVALID_RESOLVER");
                 }
-                revert("INVALID_RESOLVER");
-            }
             */
 
             if (_recordhash.length == 0) {
@@ -292,7 +294,11 @@ contract CCIP2ETH is iCCIP2ETH {
             ) {
                 revert InvalidSignature("BAD_APPROVAL_SIG");
             }
-        } /*else if (_type == iResolver.???.selector) {
+        } else {
+            //revert InvalidSignature("BAD_PREFIX");
+        }
+        /*
+            else if (_type == iResolver.???.selector) {
             // @dev custodial subdomain
             // redirect with recursive ccip-read
             // signer = assigned
@@ -329,9 +335,7 @@ contract CCIP2ETH is iCCIP2ETH {
             ) {
                 revert InvalidSignature("BAD_APPROVAL_SIG");
             }
-        }*/ else {
-            revert InvalidSignature("BAD_PREFIX");
-        }
+        }*/
         /// @dev - Create record update signature digest
         _digest = string.concat(
             "Requesting Signature To Update Off-Chain ENS Record\n",
@@ -430,10 +434,11 @@ contract CCIP2ETH is iCCIP2ETH {
         return _owner == _signer || manager[keccak256(abi.encodePacked("manager", _node, _owner, _signer))];
     }
     /**
-     * @dev Updates Supported interface 
+     * @dev Updates Supported interface
      * @param _sig - 4 bytes interface selector
      * @param _set - state to set for selector
      */
+
     function updateSupportedInterface(bytes4 _sig, bool _set) external {
         require(msg.sender == gateway.owner(), "ONLY_DEV");
         supportsInterface[_sig] = _set;

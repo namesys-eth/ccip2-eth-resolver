@@ -99,101 +99,23 @@ Note: If the JSON data is signed by the Registrant of `domain.eth`, it must be p
 
 ### --
 
-```solidity
-	//...
+### Records manager process 
 
-	funMap[iResolver.addr.selector] = "addr-60"; // eth address
-	funMap[iResolver.pubkey.selector] = "pubkey";
-	funMap[iResolver.name.selector] = "name";
+- `signKey/0` (`K0`): EOA, owner key from connected wallet, secp256k1
+- `signKey/N`: Deterministic records signer key/s under `K0`, secp256k1
+  * a
+- `ipnsKey/N`: Deterministic IPNS key/s under `K0`, ed25519
+    * For future we could reuse secp256k1/signKey as `ipnsKey`
+- `nostrKey/N`: Deterministic Nostr key/s under `K0`, secp256k1/schnorr
+    * Nostr Keys can be used to send IPNS records to service/bots over public/private Nostr relays. It's part of future Whisper/AA designs.
 
-	//...
 
-	bytes4 fun = bytes4(data[: 4]); // 4 bytes identifier
+A) Initial setup/Registration:
+1) `TX1`: Owner of `domain.eth` updates resolver address to `ccip2.eth` resolver in ENS contract
+2) `ipnsKey/0`: Owner generates a new deterministic ipns key for `domain.eth`
+   * Users are free to use any supported mutable and immutable storage pointers. IPFS, IPNS+IPFS, \*IPNS+IPLD, IPLD+Redirect. \*Other ENS contenthash types are also supported. (*@dev add tests for all, experimental)   
+3) `TX2`: Owner sets `ipnsKey/0` as recordhash for `domain.eth`
 
-	if (fun == iResolver.contenthash.selector) {
-		if (level == 3) resolveContenthash(labels[0]);
-		__lookup(HomeContenthash);
-	}
-
-	string memory jsonFile;
-	if (fun == iResolver.text.selector) {
-		jsonFile = abi.decode(data[36: ], (string));
-	} else if (fun == iOverloadResolver.addr.selector) {
-		jsonFile = string.concat(
-			"addr-",
-			uintToNumString(abi.decode(data[36: ], (uint)))
-		);
-	} else {
-		jsonFile = funMap[fun];
-		require(bytes(jsonFile).length != 0, "Invalid Resolver Function");
-	}
-```
-
-### --
-
-```solidity
-	function resolve(bytes calldata name, bytes calldata data) external view returns(bytes memory) {
-        uint level;
-        uint len;
-        bytes[] memory labels = new bytes[](3);
-        //string memory _path;
-        // dns decode
-        for (uint i; name[i] > 0x0;) {
-            len = uint8(bytes1(name[i: ++i]));
-            labels[level] = name[i: i += len];
-            //_path = string.concat(string(labels[level]), "/", _path);
-            ++level;
-        }
-        bytes4 fun = bytes4(data[: 4]); // 4 bytes identifier
-        if (fun == iResolver.contenthash.selector) {
-            if (level == 3)
-                resolveContenthash(labels[0]);
-
-            __lookup(HomeContenthash);
-        }
-        string memory jsonFile;
-        if (fun == iResolver.text.selector) {
-            jsonFile = abi.decode(data[36: ], (string));
-        } else if (fun == iOverloadResolver.addr.selector) {
-            jsonFile = string.concat(
-                "addr-",
-                uintToNumString(abi.decode(data[36: ], (uint)))
-            );
-        } else {
-            jsonFile = funMap[fun];
-            require(bytes(jsonFile).length != 0, "Invalid Resolver Function");
-        }
-
-        string memory _prefix;
-        if (level == 3) {
-            _prefix = string.concat(
-                "https://",
-                string(labels[0]),
-                ".",
-                string(labels[1]),
-                ".eth"
-            );
-        } else {
-            _prefix = string.concat("https://", string(labels[0]), ".eth");
-        }
-        revert OffchainLookup(
-            address(this), // callback contract
-            listGate(_prefix, jsonFile), // gateway URL array
-            "", // {data} field, blank//recheck
-            IPFS2.__callback.selector, // callback function
-            abi.encode( // extradata
-                block.number, // checkpoint
-                keccak256(data), // namehash + calldata
-                keccak256(
-                    abi.encodePacked(
-                        blockhash(block.number - 1),
-                        address(this),
-                        msg.sender,
-                        keccak256(data)
-                    )
-                )
-            )
-        );
-    }
-
-```
+B) Records Update Process (IPFS OR IPNS+IPFS) 
+1) Check recordhash for `domain.eth`, resolve and read `./.well-known/eth/domain/<ccip2-meta>.json` (* it's a json with all latest records so we don't have to resolve whole directory)
+2) ..

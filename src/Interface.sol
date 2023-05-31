@@ -41,10 +41,11 @@ interface iGateway is iERC173 {
         view
         returns (string[] memory gateways);
     function uintToString(uint256 value) external pure returns (string memory);
-    function bytesToHexString(bytes memory _buffer, uint256 _start) external pure returns (string memory);
+    function bytesToHexString(bytes calldata _buffer, uint256 _start) external pure returns (string memory);
     function funcToJson(bytes calldata data) external view returns (string memory _jsonPath);
     function listAllGateways() external view returns (string[] memory list);
     function toChecksumAddress(address _addr) external pure returns (string memory);
+    //function fallbackCheck(bytes4 _type, ) external view returns(bytes memory);
     /// write functions
     function addFuncMap(bytes4 _func, string calldata _name) external;
     function addGateway(string calldata _domain) external;
@@ -73,6 +74,7 @@ interface iResolver {
 
 interface iOverloadResolver {
     function addr(bytes32 node, uint256 coinType) external view returns (bytes memory);
+    function dnsRecord(bytes32 node, bytes memory name, uint16 resource) external view returns (bytes memory);
 }
 
 interface iToken {
