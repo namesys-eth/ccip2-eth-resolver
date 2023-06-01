@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: WTFPL.ETH
-pragma solidity >=0.8.15;
+pragma solidity >0.8.0 <0.9.0;
 
-import "./GatewayManager.sol";
+import "./Interface.sol";
 
 /**
  * @title Off-Chain ENS Records Manager
  * @author freetib.eth, sshmatrix.eth
  * Github : https://github.com/namesys-eth/ccip2-eth-resolver
  * Client : htpps://ccip2.eth.limo
- * https://namesys.eth.limo
  */
 contract CCIP2ETH is iCCIP2ETH {
     /// @dev - ONLY TESTNET
@@ -33,19 +32,10 @@ contract CCIP2ETH is iCCIP2ETH {
     error NotAuthorized(bytes32 node, address addr);
     error ContenthashNotSet(bytes32 node);
 
-    /// ENSIP-10 CCIP-read Off-Chain Lookup method (https://eips.ethereum.org/EIPS/eip-3668)
-    error OffchainLookup(
-        address _from, // sender (this contract)
-        string[] _gateways, // CCIP gateway URLs
-        bytes _data, // {data} field; request value for HTTP call
-        bytes4 _callbackFunction, // callback function
-        bytes _extradata // callback extra data
-    );
-
     /// @dev - ENS Legacy Registry
     iENS public immutable ENS = iENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
     /// @dev - CCIP-Read Gateways
-    iGateway public gateway;
+    iGatewayManager public gateway;
     /// Mappings
     /// @dev - Global contenthash storing all other records; must be contenthash in base32/36 string URL format
     mapping(bytes32 => bytes) public recordhash;
@@ -57,8 +47,8 @@ contract CCIP2ETH is iCCIP2ETH {
     mapping(bytes4 => bool) public supportsInterface;
 
     /// @dev - Constructor
-    constructor() {
-        gateway = new GatewayManager(msg.sender);
+    constructor(address _gateway) {
+        gateway = iGatewayManager(_gateway);
 
         /// @dev - IPFS2.eth resolver as Redirect wrapper
         /// @notice iswrapper[] is used for wrappers and internal service resolvers
@@ -70,8 +60,8 @@ contract CCIP2ETH is iCCIP2ETH {
         /// @dev - Sets current contract as Wrapper
         /// iswrapper is used to filter service resolvers and wrappers from other contract/EOA types
         /// not required if we don't use universal resolver mode
-        //isWrapper[address(this)] = true;
-        //emit UpdateWrapper(address(this), true);
+        // isWrapper[address(this)] = true;
+        // emit UpdateWrapper(address(this), true);
 
         /// @dev - Sets ENS Mainnet wrapper as Wrapper
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
@@ -105,9 +95,9 @@ contract CCIP2ETH is iCCIP2ETH {
      */
     function updateGatewayManager(address _gateway) external {
         require(msg.sender == gateway.owner(), "ONLY_DEV");
-        require(msg.sender == iGateway(_gateway).owner(), "INVALID_GATEWAY_CONTRACT");
+        require(msg.sender == iGatewayManager(_gateway).owner(), "INVALID_GATEWAY_CONTRACT");
         emit UpdateGatewayManager(address(gateway), _gateway);
-        gateway = iGateway(_gateway);
+        gateway = iGatewayManager(_gateway);
     }
 
     /**
@@ -155,48 +145,16 @@ contract CCIP2ETH is iCCIP2ETH {
 
             bytes32 _namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[--index])));
             bytes32 _node;
-            bytes memory _recordhash; // = recordhash[0];
+            bytes memory _recordhash;
             while (index > 0) {
                 _namehash = keccak256(abi.encodePacked(_namehash, keccak256(_labels[--index])));
                 if (ENS.recordExists(_namehash)) {
                     _node = _namehash;
                     _recordhash = recordhash[_namehash];
                 } else {
-                    // @dev : break = if domain.eth record doesn't exists,
-                    // there'll be no sub.domain.eth records
-                    // no break = extra feature if we allow owners of domain.eth
-                    // ..to set recordhash for subN..sub2.sub1.domain.eth even without sub1.domain.eth records in ENS
-                    _recordhash = recordhash[_namehash];
-                    //break;
+                    break;
                 }
             }
-            /// @dev : universal resolver mode is disabled as it's not really required
-            /*
-                //bytes4 func = bytes4(data[:4]);
-                //address _resolver = ENS.resolver(_node);
-                if (!isWrapper[_resolver]) {
-                    // universal redirect mode
-                    if (iERC165(_resolver).supportsInterface(iERC165.supportsInterface.selector)) {
-                        if (iERC165(_resolver).supportsInterface(iENSIP10.resolve.selector)) {
-                            return iENSIP10(_resolver).resolve(name, data);
-                        } else if (iERC165(_resolver).supportsInterface(func)) {
-                            bool ok;
-                            (ok, result) = _resolver.staticcall(data);
-                            if (!ok || result.length == 0) {
-                                // || (result.length == 32 && bytes32(result) == 0x0)) {
-                                //? default error/profile page
-                                if (func == iResolver.contenthash.selector) {
-                                    return abi.encode(recordhash[bytes32(uint256(404))]);
-                                } else {
-                                    revert("BAD_RESOLVER");
-                                }
-                            }
-                            return abi.encode(result);
-                        }
-                    }
-                    revert("INVALID_RESOLVER");
-                }
-            */
 
             if (_recordhash.length == 0) {
                 if (bytes4(data[:4]) == iResolver.contenthash.selector) {
@@ -253,8 +211,8 @@ contract CCIP2ETH is iCCIP2ETH {
         if (isWrapper[_owner]) {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
-        /// @dev - Init off-chain manager signature digest
-        string memory _digest;
+        /// @dev - Init off-chain manager signature request string
+        string memory signRequest;
         /// @dev - Get signer-type from response identifier
         bytes4 _type = bytes4(response[:4]);
         // Signer-type is on-chain (= recordhash)
@@ -267,15 +225,15 @@ contract CCIP2ETH is iCCIP2ETH {
             // Signer-type is off-chain (= approved)
         } else if (_type == iResolver.approved.selector) {
             /// @dev - Off-chain manager signature (OFF_CHAIN_SIG)
-            bytes memory _approved;
+            bytes memory _approvedSignature;
             /// @dev - Decode signer, record-specific signature, off-chain manager signature and record from response
-            (_signer, signature, _approved, result) = abi.decode(response[4:], (address, bytes, bytes, bytes));
+            (_signer, signature, _approvedSignature, result) = abi.decode(response[4:], (address, bytes, bytes, bytes));
             /// @dev - Create off-chain manager signature digest
-            _digest = string.concat(
-                "Requesting Signature To Approve Off-Chain ENS Records Manager Key\n",
+            signRequest = string.concat(
+                "Requesting Signature To Approve Off-Chain ENS Records Signer Key\n",
                 "\nENS Domain: ",
                 _domain,
-                "\nApproved For: eip155:1:",
+                "\nApproved Signer: eip155:1:",
                 gateway.toChecksumAddress(_signer),
                 "\nSigned By: eip155:1:",
                 gateway.toChecksumAddress(_owner)
@@ -286,58 +244,21 @@ contract CCIP2ETH is iCCIP2ETH {
                     _owner,
                     keccak256(
                         abi.encodePacked(
-                            "\x19Ethereum Signed Message:\n", gateway.uintToString(bytes(_digest).length), _digest
+                            "\x19Ethereum Signed Message:\n",
+                            gateway.uintToString(bytes(signRequest).length),
+                            signRequest
                         )
                     ),
-                    _approved
+                    _approvedSignature
                 )
             ) {
                 revert InvalidSignature("BAD_APPROVAL_SIG");
             }
         } else {
-            //revert InvalidSignature("BAD_PREFIX");
+            revert InvalidSignature("BAD_PREFIX");
         }
-        /*
-            else if (_type == iResolver.???.selector) {
-            // @dev custodial subdomain
-            // redirect with recursive ccip-read
-            // signer = assigned
-            // signature is from owner
-            // result is not [?]
-            uint64 _na;
-            uint64 _nb;
-            (_signer, _nb, _na, signature, result) = abi.decode(response[4:], (address, uint64, uint64, bytes, bytes));
-            require(_na > block.timestamp, "SUBDOMAIN_EXPIRED");
-            _digest = string.concat(
-                "Requesting Signature To Redirect ENS Subdomain Record\n",
-                "\nENS Subdomain: ",
-                _domain,
-                "\nAssigned To: eip155:1:",
-                gateway.toChecksumAddress(_signer),
-                "\nRedirect Hash: 0x",
-                gateway.bytesToHexString(abi.encodePacked(keccak256(result)), 0),
-                "\nValidity: ",
-                gateway.uintToString(_na),
-                " days\nSigned By: eip155:1:",
-                gateway.toChecksumAddress(_owner)
-            );
-            // Check if the record-specific signature is signed by the owner
-            if (
-                !iCCIP2ETH(this).validSignature(
-                    _owner,
-                    keccak256(
-                        abi.encodePacked(
-                            "\x19Ethereum Signed Message:\n", gateway.uintToString(bytes(_digest).length), _digest
-                        )
-                    ),
-                    signature
-                )
-            ) {
-                revert InvalidSignature("BAD_APPROVAL_SIG");
-            }
-        }*/
         /// @dev - Create record update signature digest
-        _digest = string.concat(
+        signRequest = string.concat(
             "Requesting Signature To Update Off-Chain ENS Record\n",
             "\nENS Domain: ",
             _domain,
@@ -354,7 +275,7 @@ contract CCIP2ETH is iCCIP2ETH {
                 _signer,
                 keccak256(
                     abi.encodePacked(
-                        "\x19Ethereum Signed Message:\n", gateway.uintToString(bytes(_digest).length), _digest
+                        "\x19Ethereum Signed Message:\n", gateway.uintToString(bytes(signRequest).length), signRequest
                     )
                 ),
                 signature
@@ -442,7 +363,7 @@ contract CCIP2ETH is iCCIP2ETH {
     function updateSupportedInterface(bytes4 _sig, bool _set) external {
         require(msg.sender == gateway.owner(), "ONLY_DEV");
         supportsInterface[_sig] = _set;
-        emit UpdateSupportedInterface(_sig, _set);
+        //emit UpdateSupportedInterface(_sig, _set);
     }
 
     /**
@@ -456,20 +377,35 @@ contract CCIP2ETH is iCCIP2ETH {
         isWrapper[_addr] = _set;
         emit UpdateWrapper(_addr, _set);
     }
+    /* 
+    * Owner 
+    */
+    function owner() public view returns (address) {
+        return gateway.owner();
+    }
+    /**
+     * @dev Withdraw Ether to owner; to be used for tips or in case some Ether gets locked in the contract
+     */
+
+    function withdraw() external {
+        payable(gateway.owner()).transfer(address(this).balance);
+    }
 
     /**
-     * @dev Sets multiple new wrappers in the list of application wrappers
-     * @param _addrs - list of addresses of new wrappers
-     * @param _sets - states to set for new wrappers
+     * @dev To be used for tips or in case some fungible tokens get locked in the contract
+     * @param _token - token address
+     * @param _balance - amount to release
      */
-    function updateWrappers(address[] calldata _addrs, bool[] calldata _sets) external {
-        require(msg.sender == gateway.owner(), "ONLY_DEV");
-        uint256 len = _addrs.length;
-        require(len == _sets.length, "BAD_LENGTH");
-        for (uint256 i = 0; i < len; i++) {
-            require(_addrs[i].code.length > 0, "ONLY_CONTRACT");
-            isWrapper[_addrs[i]] = _sets[i];
-            emit UpdateWrapper(_addrs[i], _sets[i]);
-        }
+    function withdraw(address _token, uint256 _balance) external {
+        iToken(_token).transferFrom(address(this), gateway.owner(), _balance);
+    }
+
+    /**
+     * @dev To be used for tips or in case some non-fungible tokens get locked in the contract
+     * @param _token - token address
+     * @param _id - token ID to release
+     */
+    function safeWithdraw(address _token, uint256 _id) external {
+        iToken(_token).safeTransferFrom(address(this), gateway.owner(), _id);
     }
 }

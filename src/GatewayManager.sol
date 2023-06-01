@@ -6,8 +6,10 @@ import "./Interface.sol";
 /**
  * @title CCIP2ETH Gateway Manager
  * @author freetib.eth, sshmatrix.eth
+ * Github : https://github.com/namesys-eth/ccip2-eth-resolver
+ * Client : htpps://ccip2.eth.limo
  */
-contract GatewayManager is iERC173, iGateway {
+contract GatewayManager is iERC173, iGatewayManager {
     /// Events
     event AddGateway(string indexed domain);
     event RemoveGateway(string indexed domain);
@@ -35,15 +37,15 @@ contract GatewayManager is iERC173, iGateway {
     mapping(bytes4 => string) public funcMap;
 
     /// @dev - Constructor
-    constructor(address _owner) {
+    constructor() {
         /// @dev - Set owner of contract
-        owner = payable(_owner);
+        owner = payable(msg.sender);
         /// @dev - Define all default records
         funcMap[iResolver.addr.selector] = "_address/60";
         funcMap[iResolver.pubkey.selector] = "pubkey";
         funcMap[iResolver.name.selector] = "name";
         funcMap[iResolver.contenthash.selector] = "contenthash";
-        funcMap[iResolver.zonehash.selector] = "_dnsrecord/zonehash";
+        funcMap[iResolver.zonehash.selector] = "_dns/zone";
         /// @dev - Set initial list of secondary gateways
         Gateways.push("dweb.link");
         emit AddGateway("dweb.link");
@@ -77,12 +79,12 @@ contract GatewayManager is iERC173, iGateway {
             bytes1 _prefix = _recordhash[0];
             if (_prefix == 0xe2) {
                 _fullPath = string.concat(
-                    "/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, "?format=dag-cbor&t={data}"
+                    "/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, "&format=dag-cbor"
                 );
             } else if (_prefix == 0xe5) {
-                _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path, "?t={data}");
+                _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path);
             } else if (_prefix == 0xe3) {
-                _fullPath = string.concat("/ipfs/f", bytesToHexString(_recordhash, 2), _path, "?t={data}");
+                _fullPath = string.concat("/ipfs/f", bytesToHexString(_recordhash, 2), _path);
             } else if (_prefix == bytes1("k")) {
                 _fullPath = string.concat("/ipns/", string(_recordhash), _path);
             } else if (bytes2(_recordhash[:2]) == bytes2("ba")) {
@@ -107,7 +109,7 @@ contract GatewayManager is iERC173, iGateway {
         if (bytes(funcMap[func]).length > 0) {
             _jsonPath = funcMap[func];
         } else if (func == iResolver.text.selector) {
-            _jsonPath = abi.decode(data[36:], (string));
+            _jsonPath = string.concat("_text/", abi.decode(data[36:], (string)));
         } else if (func == iOverloadResolver.addr.selector) {
             _jsonPath = string.concat("_address/", uintToString(abi.decode(data[36:], (uint256))));
         } else if (func == iResolver.interfaceImplementer.selector) {
@@ -116,8 +118,7 @@ contract GatewayManager is iERC173, iGateway {
         } else if (func == iResolver.ABI.selector) {
             _jsonPath = string.concat("_abi/", uintToString(abi.decode(data[36:], (uint256))));
         } else if (func == iResolver.dnsRecord.selector || func == iOverloadResolver.dnsRecord.selector) {
-            // e.g, `.well-known/eth/domain/_dnsrecord/<resource>.json`
-            bytes memory _name;
+            // e.g, `.well-known/eth/domain/dns/<resource>.json`
             uint256 resource;
             if (data.length == 100) {
                 // 4+32+32+32
@@ -125,11 +126,11 @@ contract GatewayManager is iERC173, iGateway {
             } else {
                 (, resource) = abi.decode(data[36:], (bytes, uint256));
             }
-            _jsonPath = string.concat("_dnsrecord/", uintToString(resource));
+            _jsonPath = string.concat("_dns/", uintToString(resource));
         } else {
             revert ResolverFunctionNotImplemented(func);
         }
-        _jsonPath = string.concat(_jsonPath, ".json");
+        _jsonPath = string.concat(_jsonPath, ".json?t={data}");
     }
 
     /**
@@ -173,9 +174,9 @@ contract GatewayManager is iERC173, iGateway {
     }
 
     /**
-     * @dev Converts lowercase address to checksummed address string
-     * @param _addr - lowercase address string
-     * @return - checksummed address
+     * @dev Converts address to checksummed address string
+     * @param _addr - address
+     * @return - checksum address string
      */
     function toChecksumAddress(address _addr) public pure returns (string memory) {
         bytes memory _buffer = abi.encodePacked(_addr);
@@ -208,7 +209,7 @@ contract GatewayManager is iERC173, iGateway {
         for (uint256 i = 0; i < len; i++) {
             _b = uint8(_buffer[i + _start]);
             result[i * 2] = b16[_b / 16];
-            result[i * 2 + 1] = b16[_b % 16];
+            result[(i * 2) + 1] = b16[_b % 16];
         }
         return string(result);
     }
@@ -217,9 +218,10 @@ contract GatewayManager is iERC173, iGateway {
     /**
      * @dev Adds a new record type by adding its bytes4-to-filename mapping
      * @param _func - bytes4 of new record type to add
-     * @param _name - string formatted label of function
+     * @param _name - string formatted label of function, must start with "/"
      */
     function addFuncMap(bytes4 _func, string calldata _name) external onlyDev {
+        require(bytes(_name)[0] == bytes1("/"), "Invalid Prefix");
         funcMap[_func] = _name;
         emit UpdateFuncFile(_func, _name);
     }
@@ -228,7 +230,7 @@ contract GatewayManager is iERC173, iGateway {
      * @dev Shows list of all available gateways
      * @return list - list of gateways
      */
-    function listAllGateways() external view returns (string[] memory list) {
+    function listGateways() external view returns (string[] memory list) {
         return Gateways;
     }
 
@@ -298,3 +300,45 @@ contract GatewayManager is iERC173, iGateway {
         iToken(_token).safeTransferFrom(THIS, owner, _id);
     }
 }
+
+
+
+        /*
+            else if (_type == iResolver.???.selector) {
+            // @dev custodial subdomain
+            // redirect with recursive ccip-read
+            // signer = assigned
+            // signature is from owner
+            // result is not [?]
+            uint64 _na;
+            uint64 _nb;
+            (_signer, _nb, _na, signature, result) = abi.decode(response[4:], (address, uint64, uint64, bytes, bytes));
+            require(_na > block.timestamp, "SUBDOMAIN_EXPIRED");
+            signRequest = string.concat(
+                "Requesting Signature To Redirect ENS Subdomain Record\n",
+                "\nENS Subdomain: ",
+                _domain,
+                "\nAssigned To: eip155:1:",
+                gateway.toChecksumAddress(_signer),
+                "\nRedirect Hash: 0x",
+                gateway.bytesToHexString(abi.encodePacked(keccak256(result)), 0),
+                "\nValidity: ",
+                gateway.uintToString(_na),
+                " days\nSigned By: eip155:1:",
+                gateway.toChecksumAddress(_owner)
+            );
+            // Check if the record-specific signature is signed by the owner
+            if (
+                !iCCIP2ETH(this).validSignature(
+                    _owner,
+                    keccak256(
+                        abi.encodePacked(
+                            "\x19Ethereum Signed Message:\n", gateway.uintToString(bytes(signRequest).length), signRequest
+                        )
+                    ),
+                    signature
+                )
+            ) {
+                revert InvalidSignature("BAD_APPROVAL_SIG");
+            }
+        }*/
