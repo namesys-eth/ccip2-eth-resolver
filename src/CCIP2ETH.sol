@@ -38,7 +38,7 @@ contract CCIP2ETH is iCCIP2ETH {
     iGatewayManager public gateway;
     /// Mappings
     /// @dev - Global contenthash storing all other records; could be contenthash in base32/36 string URL format
-    mapping(address => mapping(bytes32 => bytes)) public recordhash;
+    mapping(bytes32 => bytes) public recordhash;
     /// @dev - On-chain singular manager for all records of a name
     //mapping(bytes32 => bool) public manager;
     /// @dev - List of all application wrapping contracts to be declared in contructor
@@ -98,7 +98,7 @@ contract CCIP2ETH is iCCIP2ETH {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
         if (msg.sender == _owner || isApprovedFor[_owner][_node][msg.sender]) {
-            recordhash[msg.sender][_node] = _recordhash;
+            recordhash[_node] = _recordhash;
             emit RecordhashChanged(msg.sender, _node, _recordhash);
         } else {
             revert NotAuthorized(_node, msg.sender);
@@ -118,7 +118,7 @@ contract CCIP2ETH is iCCIP2ETH {
         }
         if (msg.sender == _owner || isApprovedFor[_owner][_node][msg.sender]) {
             bytes32 _namehash = keccak256(abi.encodePacked(_node, keccak256(bytes(_sub))));
-            recordhash[msg.sender][_namehash] = _recordhash;
+            recordhash[_namehash] = _recordhash;
             emit RecordhashChanged(msg.sender, _namehash, _recordhash);
         } else {
             revert NotAuthorized(_node, msg.sender);
@@ -139,13 +139,13 @@ contract CCIP2ETH is iCCIP2ETH {
         }
         if (msg.sender == _owner || isApprovedFor[_owner][_node][msg.sender]) {
             uint256 len = _subs.length;
-            bytes32 _namehash;
+            bytes32 _namehash = _node;
             unchecked {
                 while (len > 0) {
-                    _namehash = keccak256(abi.encodePacked(_node, keccak256(bytes(_subs[--len]))));
+                    _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_subs[--len]))));
                 }
             }
-            recordhash[msg.sender][_namehash] = _recordhash;
+            recordhash[_namehash] = _recordhash;
             emit RecordhashChanged(msg.sender, _namehash, _recordhash);
         } else {
             revert NotAuthorized(_node, msg.sender);
@@ -186,16 +186,16 @@ contract CCIP2ETH is iCCIP2ETH {
                     if (isWrapper[_owner]) {
                         _owner = iToken(_owner).ownerOf(uint256(_node));
                     }
-                    _recordhash = recordhash[_owner][_node];
-                } else if (bytes(recordhash[_owner][_namehash]).length > 0) {
-                    _recordhash = recordhash[_owner][_namehash];
+                    _recordhash = recordhash[_node];
+                } else if (bytes(recordhash[_namehash]).length > 0) {
+                    _recordhash = recordhash[_namehash];
                 }
             }
 
             if (_recordhash.length == 0) {
                 if (bytes4(data[:4]) == iResolver.contenthash.selector) {
                     // 404 page?profile page, resolver is set but missing recordhash
-                    return abi.encode(recordhash[address(this)][bytes32(uint256(404))]);
+                    return abi.encode(recordhash[bytes32(uint256(404))]);
                 }
                 revert("RECORD_NOT_SET");
             }

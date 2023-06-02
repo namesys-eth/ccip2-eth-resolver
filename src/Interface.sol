@@ -34,7 +34,7 @@ interface iCCIP2ETH is iENSIP10 {
 
     function validSignature(address _signer, bytes32 _digest, bytes calldata _signature) external pure returns (bool);
     function setRecordhash(bytes32 _node, bytes calldata _contenthash) external;
-    function recordhash(address owner, bytes32 _node) external view returns (bytes memory _contenthash);
+    function recordhash(bytes32 _node) external view returns (bytes memory _contenthash);
 }
 
 interface iGatewayManager is iERC173 {
