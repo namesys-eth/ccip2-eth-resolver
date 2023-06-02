@@ -61,8 +61,9 @@ contract CCIP2ETHTest is Test {
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _namehash);
         string memory _suffix = gateway.funcToJson(_request);
-        bytes32 _checkHash =
-            keccak256(abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), _domain, _path, _suffix));
+        bytes32 _checkHash = keccak256(
+            abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), address(this), _domain, _path, _suffix)
+        );
         vm.expectRevert(
             abi.encodeWithSelector(
                 iENSIP10.OffchainLookup.selector,
@@ -72,7 +73,7 @@ contract CCIP2ETHTest is Test {
                 ),
                 abi.encodePacked(uint32(block.timestamp / 60) * 60),
                 ccip2eth.__callback.selector,
-                abi.encode(_namehash, block.number - 1, _checkHash, _domain, _path, _suffix)
+                abi.encode(_namehash, address(this), block.number - 1, _namehash, _checkHash, _domain, _path, _suffix)
             )
         );
         ccip2eth.resolve(_encoded, _request);

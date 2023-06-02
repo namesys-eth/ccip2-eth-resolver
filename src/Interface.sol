@@ -34,7 +34,7 @@ interface iCCIP2ETH is iENSIP10 {
 
     function validSignature(address _signer, bytes32 _digest, bytes calldata _signature) external pure returns (bool);
     function setRecordhash(bytes32 _node, bytes calldata _contenthash) external;
-    function recordhash(bytes32 _node) external view returns (bytes memory _contenthash);
+    function recordhash(address owner, bytes32 _node) external view returns (bytes memory _contenthash);
 }
 
 interface iGatewayManager is iERC173 {
@@ -47,7 +47,7 @@ interface iGatewayManager is iERC173 {
     function funcToJson(bytes calldata data) external view returns (string memory _jsonPath);
     function listGateways() external view returns (string[] memory list);
     function toChecksumAddress(address _addr) external pure returns (string memory);
-    //function fallbackCheck(bytes4 _type) external view returns (bytes memory);
+    function __fallback(bytes4 _type) external view returns (address signer, bytes memory result);
     /// write functions
     function addFuncMap(bytes4 _func, string calldata _name) external;
     function addGateway(string calldata _domain) external;

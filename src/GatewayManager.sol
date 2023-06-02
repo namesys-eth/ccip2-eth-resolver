@@ -78,9 +78,8 @@ contract GatewayManager is iERC173, iGatewayManager {
             string memory _fullPath;
             bytes1 _prefix = _recordhash[0];
             if (_prefix == 0xe2) {
-                _fullPath = string.concat(
-                    "/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, "&format=dag-cbor"
-                );
+                _fullPath =
+                    string.concat("/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, "&format=dag-cbor");
             } else if (_prefix == 0xe5) {
                 _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path);
             } else if (_prefix == 0xe3) {
@@ -100,10 +99,14 @@ contract GatewayManager is iERC173, iGatewayManager {
     }
 
     /**
+     */
+    function __fallback(bytes4) external view returns (address signer, bytes memory result) {}
+    /**
      * @dev Converts queried resolver function to off-chain record filename
      * @param data - full path for records.json
      * @return _jsonPath - path to JSON file containing the queried record
      */
+
     function funcToJson(bytes calldata data) public view returns (string memory _jsonPath) {
         bytes4 func = bytes4(data[:4]);
         if (bytes(funcMap[func]).length > 0) {
@@ -301,9 +304,7 @@ contract GatewayManager is iERC173, iGatewayManager {
     }
 }
 
-
-
-        /*
+/*
             else if (_type == iResolver.???.selector) {
             // @dev custodial subdomain
             // redirect with recursive ccip-read
