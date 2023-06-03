@@ -216,7 +216,7 @@ contract CCIP2ETH is iCCIP2ETH {
         (
             bytes32 _node,
             uint256 _blocknumber,
-            bytes32 _digest_,
+            bytes32 __digest,
             string memory _domain,
             string memory _path,
             string memory _suffix
@@ -225,7 +225,7 @@ contract CCIP2ETH is iCCIP2ETH {
         /// @dev - timeout in 3 blocks
         require(
             block.number < _blocknumber + 4
-                && _digest_ == keccak256(abi.encodePacked(this, blockhash(_blocknumber), _domain, _path, _suffix)),
+                && __digest == keccak256(abi.encodePacked(this, blockhash(_blocknumber), _domain, _path, _suffix)),
             "INVALID_CHECKSUM/TIMEOUT"
         );
         /// @dev - Init signer from CCIP-Read response
@@ -242,14 +242,14 @@ contract CCIP2ETH is iCCIP2ETH {
         string memory _digest;
         /// @dev - Get signer-type from response identifier
         bytes4 _type = bytes4(response[:4]);
-        // Signer-type is on-chain (= recordhash)
+        // Signer-type is on-chain (= recordhash.selector)
         if (_type == iCCIP2ETH.recordhash.selector) {
             // Decode signer, record-specific signature and record from response
             (_signer, signature, result) = abi.decode(response[4:], (address, bytes, bytes));
             if (_signer != _owner && !manager[keccak256(abi.encodePacked("manager", _node, _owner, _signer))]) {
                 revert NotAuthorized(_node, _signer);
             }
-            // Signer-type is off-chain (= approved)
+        // Signer-type is off-chain (= approved.selector)
         } else if (_type == iResolver.approved.selector) {
             /// @dev - Off-chain manager signature (OFF_CHAIN_SIG)
             bytes memory _approved;
