@@ -4,18 +4,55 @@ pragma solidity ^0.8.15;
 import "forge-std/Test.sol";
 import "src/GatewayManager.sol";
 /**
- * @author 0xc0de4c0ffee, sshmatrix
+ * @author freetib.eth, sshmatrix.eth
  * @title CCIP2.eth Resolver tester
  */
+
+interface xENS is iENS {
+    function setResolver(bytes32 node, address resolver) external;
+    function setOwner(bytes32 node, address owner) external;
+}
 
 contract GatewayManagerTest is Test {
     GatewayManager public gateway;
     Utils public utils = new Utils();
 
     function setUp() public {
-        gateway = new GatewayManager();
+        //gateway = new GatewayManager();
+    }
+
+    xENS public ENS = xENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
+
+    function testStatic() public view {
+        bytes[] memory _name = new bytes[](2);
+        _name[0] = "freetibet";
+        _name[1] = "eth";
+        (bytes32 _namehash, bytes memory _encoded) = utils.Encode(_name);
+        bytes memory _request = abi.encodePacked(iResolver.contenthash.selector, _namehash);
+        console.logBytes(_request);
+        _request = abi.encodeWithSelector(iResolver.contenthash.selector, _namehash);
+        console.logBytes(_request);
+        if (ENS.recordExists(_namehash)) {
+            address _resolver = ENS.resolver(_namehash);
+            //if (iERC165(_resolver).supportsInterface(iENSIP10.resolve.selector)) {
+            //    return iENSIP10(_resolver).resolve(name, data);
+            //} else
+            if (iERC165(_resolver).supportsInterface(iResolver.contenthash.selector)) {
+                (bool ok, bytes memory result) = _resolver.staticcall(_request);
+                if (ok && result.length > 0) {
+                    console.logBytes(abi.encode(result));
+                    console.logBytes(result);
+                } else {
+                    console.logBytes(abi.encode(result));
+                    console.logBytes(result);
+                }
+            }
+        } else {
+            revert("INVALID_DAPP_SERVICE");
+        }
     }
 }
+// 0xbc1c58d182b6f6c910a7648fa810793ffa417452de9de0db373b3039457e85b110eced31
 
 contract Utils {
     function Format(bytes calldata _encoded) external pure returns (string memory _path, string memory _domain) {

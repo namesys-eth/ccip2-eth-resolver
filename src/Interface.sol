@@ -32,7 +32,10 @@ interface iCCIP2ETH is iENSIP10 {
         view
         returns (bytes memory _result);
 
-    function validSignature(address _signer, bytes32 _digest, bytes calldata _signature) external pure returns (bool);
+    function signedBy(string calldata _signRequest, bytes calldata _signature)
+        external
+        pure
+        returns (address _signer);
     function setRecordhash(bytes32 _node, bytes calldata _contenthash) external;
     function recordhash(bytes32 _node) external view returns (bytes memory _contenthash);
 }
@@ -87,4 +90,61 @@ interface iToken {
     //function setApprovalForAll(address _operator, bool _approved) external;
     //event Approval(address indexed _owner, address indexed _approved, uint256 indexed _tokenId);
     //event ApprovalForAll(address indexed _owner, address indexed _operator, bool _approved);
+}
+// owner = owner of domain.eth
+// manager = on chain approved by owner
+// signer = record's result signer
+
+interface iCallbackType {
+    /// @dev : signer = signer of result
+    /// signer is owner or manager or offchain approved key
+    /// approved signature is checked if signer is not owner or manager
+    /// approval must be signed by owner or manager
+    /// if signer is owner/manager?
+    /// >> approved Signature = not used, fill-in length >1 ~ <32 bytes with anything
+    function signedRecord(
+        address signer,
+        bytes memory recordSignature,
+        bytes memory approvedSignature,
+        bytes memory result
+    ) external view returns (bytes memory);
+
+    //=================
+
+    // inputs use *almost* same rule as above "signedRecord(..)" function
+    // tldr; sorry mario, your princess is in another castle
+    // experimental: recursive ccip-read/offchain lookup
+    // +1 revert "OffchainLookup(...)" for second "callback2(..)"
+    // if approved signature length == 1, signer is owner/manager
+    // if approved signature length >1, signed by owner/manager to approve signer
+    // signer is one who signed redirecthash = signautre
+    // same signer have to sign recursive records under redirected recordhash
+    // redirecthash is ipfs/ipns/... contenthash
+    function signedRedirect(address _signer, bytes memory _signature, bytes memory _extradata, bytes memory _redirect)
+        external
+        view
+        returns (bytes memory);
+
+    ///================
+
+    function signedDappService(
+        address signer,
+        bytes memory signature,
+        bytes memory approvedSignature,
+        bytes memory name // encoded name of domain
+    ) external view returns (bytes memory);
+    // ^^ extended redirect feature
+    // dapphash is namehash of ..*.eth to redirect (on/off-chain read & return records)
+    // eg: ens.domain.eth >> app.ens.eth, dapp
+    // eg: high-priest.domain.eth >> vitalik.eth, why not
+    // eg: bensyc.domain.eth >> 421.bensyc.eth, nft/profile
+    // eg: swap.domain.eth >> app.uniswap.eth, defi
+    // experimental: DApp store/NIP02 type flat petname as sub.domain.eth
+    // Users can "install" *.eth in their ENS as *.domain.eth, offchain
+    // + meta list of all installed dapps in dapp.domain.eth
+    // + Namesys dappstore with a public list of "installable" *.eth dapps
+
+    //?? allow gateway filter specific resolver function where plaintext "NOT signed" records are ok?
+    // eg meta records/ indexer .json types as text/subdomain level?
+    //function notSignedRecord(bytes memory result) external view returns(bytes memory);
 }
