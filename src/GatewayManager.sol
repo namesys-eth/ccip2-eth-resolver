@@ -73,21 +73,22 @@ contract GatewayManager is iERC173, iGatewayManager {
             gateways = new string[](len);
             uint256 i;
             if (bytes(PrimaryGateway).length > 0) {
-                gateways[i++] = string.concat("https://", formatSubdomain(_recordhash), ".", PrimaryGateway, _path);
+                gateways[i++] = string.concat("https://", formatSubdomain(_recordhash), ".", PrimaryGateway, _path, ".json?t={data}");
             }
             string memory _fullPath;
             bytes1 _prefix = _recordhash[0];
             if (_prefix == 0xe2) {
-                _fullPath =
-                    string.concat("/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, "&format=dag-cbor");
+                _fullPath = string.concat(
+                    "/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}&format=dag-cbor"
+                );
             } else if (_prefix == 0xe5) {
-                _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path);
+                _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}");
             } else if (_prefix == 0xe3) {
-                _fullPath = string.concat("/ipfs/f", bytesToHexString(_recordhash, 2), _path);
+                _fullPath = string.concat("/ipfs/f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}");
             } else if (_prefix == bytes1("k")) {
-                _fullPath = string.concat("/ipns/", string(_recordhash), _path);
+                _fullPath = string.concat("/ipns/", string(_recordhash), _path, ".json?t={data}");
             } else if (bytes2(_recordhash[:2]) == bytes2("ba")) {
-                _fullPath = string.concat("/ipfs/", string(_recordhash), _path);
+                _fullPath = string.concat("/ipfs/", string(_recordhash), _path, ".json?t={data}");
             } else {
                 revert("UNSUPPORTED_RECORDHASH");
             }
@@ -134,7 +135,7 @@ contract GatewayManager is iERC173, iGatewayManager {
         } else {
             revert ResolverFunctionNotImplemented(func);
         }
-        _jsonPath = string.concat(_jsonPath, ".json?t={data}");
+        //_jsonPath = string.concat(_jsonPath, ".json?t={data}");
     }
 
     /**
@@ -302,6 +303,10 @@ contract GatewayManager is iERC173, iGatewayManager {
      */
     function safeWithdraw(address _token, uint256 _id) external {
         iToken(_token).safeTransferFrom(THIS, owner, _id);
+    }
+
+    function chunk(bytes calldata _b, uint256 _start, uint256 _end) external pure returns (bytes memory) {
+        return _b[_start:_end == 0 ? _b.length : _end];
     }
 }
 
