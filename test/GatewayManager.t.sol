@@ -18,12 +18,74 @@ contract GatewayManagerTest is Test {
     Utils public utils = new Utils();
 
     function setUp() public {
-        //gateway = new GatewayManager();
+        gateway = new GatewayManager();
     }
 
     xENS public ENS = xENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
 
-    function testStatic() public view {
+    function testChecksumAddress() public {
+        string memory addrStr = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
+        address addr = address(bytes20(hex"00000000000c2e074ec69a0dfb2997ba6c7d2e1e"));
+        assertEq(gateway.toChecksumAddress(addr), addrStr);
+
+        addrStr = "0xc0dE4C0FfEEc0de4c0fFeeC0DE4C0ffeEC0DE402";
+        addr = address(bytes20(hex"c0de4c0ffeec0de4c0ffeec0de4c0ffeec0de402"));
+        assertEq(gateway.toChecksumAddress(addr), addrStr);
+
+
+        addrStr = "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF";
+        addr = address(bytes20(hex"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"));
+        assertEq(gateway.toChecksumAddress(addr), addrStr);
+
+        addrStr = "0x0000000000000000000000000000000000000000";
+        addr = address(bytes20(hex"0000000000000000000000000000000000000000"));
+        assertEq(gateway.toChecksumAddress(addr), addrStr);
+    }
+
+    function testUintToString() public{
+        uint n = 1234567890;
+        string memory k = "1234567890";
+        assertEq(gateway.uintToString(n), k);
+        n = 99999999999999999999;
+        k = "99999999999999999999";
+        assertEq(gateway.uintToString(n), k);
+        n = 11223344556677889900;
+        k = "11223344556677889900";
+        assertEq(gateway.uintToString(n), k);
+        n = 42;
+        k = "42";
+        assertEq(gateway.uintToString(n), k);
+        n = 0;
+        k = "0";
+        assertEq(gateway.uintToString(n), k);
+        n = type(uint256).max;
+        k = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
+        assertEq(gateway.uintToString(n), k);
+    }
+
+    function testbytesToHexString() public {
+        string memory bStr = "e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
+        bytes memory bBytes = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
+        assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
+        
+        bStr = "bc1c58d182b6f6c910a7648fa810793ffa417452de9de0db373b3039457e85b110eced31";
+        bBytes = hex"bc1c58d182b6f6c910a7648fa810793ffa417452de9de0db373b3039457e85b110eced31";
+        assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
+        
+        bStr = "00000000000000000000";
+        bBytes = hex"00000000000000000000";
+        assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
+        
+        bStr = "ffffffffffffffffffffffffffffff";
+        bBytes = hex"ffffffffffffffffffffffffffffff";
+        assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
+        
+        bStr = "ffffffffffffffffffffffffffffff";
+        bBytes = hex"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
+        assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
+    }
+
+    /*function testStatic() public view {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "freetibet";
         _name[1] = "eth";
@@ -50,14 +112,14 @@ contract GatewayManagerTest is Test {
         } else {
             revert("INVALID_DAPP_SERVICE");
         }
-    }
+    }*/
 }
-// 0xbc1c58d182b6f6c910a7648fa810793ffa417452de9de0db373b3039457e85b110eced31
+// 
 
 contract Utils {
     function Format(bytes calldata _encoded) external pure returns (string memory _path, string memory _domain) {
         uint256 n = 1;
-        uint256 len = uint8(bytes1(_encoded[:1]));
+        uint256 len = uint8(bytes1(_encoded[0]));
         bytes memory _label;
         _label = _encoded[1:n += len];
         _path = string(_label);

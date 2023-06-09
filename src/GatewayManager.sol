@@ -7,15 +7,16 @@ import "./Interface.sol";
  * @title CCIP2ETH Gateway Manager
  * @author freetib.eth, sshmatrix.eth
  * Github : https://github.com/namesys-eth/ccip2-eth-resolver
- * Client : htpps://ccip2.eth.limo
+ * Docs : htpps://ccip2.eth.limo
+ * Client : htpps://namesys.eth.limo
  */
 contract GatewayManager is iERC173, iGatewayManager {
-    /// Events
+    /// @dev - Events
     event AddGateway(string indexed domain);
     event RemoveGateway(string indexed domain);
     event UpdateFuncFile(bytes4 _func, string _name);
-    /// Errors
 
+    /// @dev - Errors
     error ContenthashNotImplemented(bytes1 _type);
     error ResolverFunctionNotImplemented(bytes4 func);
 
@@ -29,8 +30,9 @@ contract GatewayManager is iERC173, iGatewayManager {
     }
 
     address immutable THIS = address(this);
-    /// @dev - Primary gateway domain
+    /// @dev - Primary IPFS gateway domain, ipfs2.eth.limo
     string public PrimaryGateway = "ipfs2.eth.limo";
+
     /// @dev - List of secondary gateway domains
     string[] public Gateways;
     /// @dev - Resolver function bytes4 selector → Off-chain record filename <name>.json
@@ -72,8 +74,14 @@ contract GatewayManager is iERC173, iGatewayManager {
             if (len > 4) len = 4;
             gateways = new string[](len);
             uint256 i;
+            if(bytes8(_recordhash[:8]) == bytes8("https://")){
+                gateways[0] = string.concat(string(_recordhash), _path, ".json?t={data}");
+                return gateways;
+            }
             if (bytes(PrimaryGateway).length > 0) {
-                gateways[i++] = string.concat("https://", formatSubdomain(_recordhash), ".", PrimaryGateway, _path, ".json?t={data}");
+                gateways[i++] = string.concat(
+                    "https://", formatSubdomain(_recordhash), ".", PrimaryGateway, _path, ".json?t={data}"
+                );
             }
             string memory _fullPath;
             bytes1 _prefix = _recordhash[0];
@@ -101,7 +109,9 @@ contract GatewayManager is iERC173, iGatewayManager {
 
     /**
      */
-    function __fallback(bytes4) external view returns (address signer, bytes memory result) {}
+    function __fallback(bytes4) external view returns (address signer, bytes memory result) {
+        revert("NOT_YET_IMPLEMENTED");
+    }
 
     /**
      * @dev Converts queried resolver function to off-chain record filename
@@ -135,13 +145,13 @@ contract GatewayManager is iERC173, iGatewayManager {
         } else {
             revert ResolverFunctionNotImplemented(func);
         }
-        //_jsonPath = string.concat(_jsonPath, ".json?t={data}");
     }
 
     /**
      * @dev Converts overflowing recordhash to valid subdomain label
      * @param _recordhash - overflowing recordhash to convert
      * @return result - valid subdomain label
+     * Compatible with *.ipfs2.eth.limo gateway only
      */
     function formatSubdomain(bytes calldata _recordhash) public pure returns (string memory result) {
         if (_recordhash[0] == bytes1("k") || _recordhash[0] == bytes1("b")) {
@@ -226,7 +236,6 @@ contract GatewayManager is iERC173, iGatewayManager {
      * @param _name - string formatted label of function, must start with "/"
      */
     function addFuncMap(bytes4 _func, string calldata _name) external onlyDev {
-        require(bytes(_name)[0] == bytes1("/"), "Invalid Prefix");
         funcMap[_func] = _name;
         emit UpdateFuncFile(_func, _name);
     }
@@ -306,46 +315,6 @@ contract GatewayManager is iERC173, iGatewayManager {
     }
 
     function chunk(bytes calldata _b, uint256 _start, uint256 _end) external pure returns (bytes memory) {
-        return _b[_start:_end == 0 ? _b.length : _end];
+        return _b[_start:(_end > _start ? _end : _b.length)];
     }
 }
-
-/*
-            else if (_type == iResolver.???.selector) {
-            // @dev custodial subdomain
-            // redirect with recursive ccip-read
-            // signer = assigned
-            // signature is from owner
-            // result is not [?]
-            uint64 _na;
-            uint64 _nb;
-            (_signer, _nb, _na, signature, result) = abi.decode(response[4:], (address, uint64, uint64, bytes, bytes));
-            require(_na > block.timestamp, "SUBDOMAIN_EXPIRED");
-            signRequest = string.concat(
-                "Requesting Signature To Redirect ENS Subdomain Record\n",
-                "\nENS Subdomain: ",
-                _domain,
-                "\nAssigned To: eip155:1:",
-                gateway.toChecksumAddress(_signer),
-                "\nRedirect Hash: 0x",
-                gateway.bytesToHexString(abi.encodePacked(keccak256(result)), 0),
-                "\nValidity: ",
-                gateway.uintToString(_na),
-                " days\nSigned By: eip155:1:",
-                gateway.toChecksumAddress(_owner)
-            );
-            // Check if the record-specific signature is signed by the owner
-            if (
-                !iCCIP2ETH(this).validSignature(
-                    _owner,
-                    keccak256(
-                        abi.encodePacked(
-                            "\x19Ethereum Signed Message:\n", gateway.uintToString(bytes(signRequest).length), signRequest
-                        )
-                    ),
-                    signature
-                )
-            ) {
-                revert InvalidSignature("BAD_APPROVAL_SIG");
-            }
-        }*/
