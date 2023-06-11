@@ -32,7 +32,6 @@ contract GatewayManagerTest is Test {
         addr = address(bytes20(hex"c0de4c0ffeec0de4c0ffeec0de4c0ffeec0de402"));
         assertEq(gateway.toChecksumAddress(addr), addrStr);
 
-
         addrStr = "0xFFfFfFffFFfffFFfFFfFFFFFffFFFffffFfFFFfF";
         addr = address(bytes20(hex"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"));
         assertEq(gateway.toChecksumAddress(addr), addrStr);
@@ -42,8 +41,8 @@ contract GatewayManagerTest is Test {
         assertEq(gateway.toChecksumAddress(addr), addrStr);
     }
 
-    function testUintToString() public{
-        uint n = 1234567890;
+    function testUintToString() public {
+        uint256 n = 1234567890;
         string memory k = "1234567890";
         assertEq(gateway.uintToString(n), k);
         n = 99999999999999999999;
@@ -67,19 +66,19 @@ contract GatewayManagerTest is Test {
         string memory bStr = "e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
         bytes memory bBytes = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
         assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
-        
+
         bStr = "bc1c58d182b6f6c910a7648fa810793ffa417452de9de0db373b3039457e85b110eced31";
         bBytes = hex"bc1c58d182b6f6c910a7648fa810793ffa417452de9de0db373b3039457e85b110eced31";
         assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
-        
+
         bStr = "00000000000000000000";
         bBytes = hex"00000000000000000000";
         assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
-        
+
         bStr = "ffffffffffffffffffffffffffffff";
         bBytes = hex"ffffffffffffffffffffffffffffff";
         assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
-        
+
         bStr = "ffffffffffffffffffffffffffffff";
         bBytes = hex"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
         assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
@@ -114,7 +113,7 @@ contract GatewayManagerTest is Test {
         }
     }*/
 }
-// 
+//
 
 contract Utils {
     function Format(bytes calldata _encoded) external pure returns (string memory _path, string memory _domain) {

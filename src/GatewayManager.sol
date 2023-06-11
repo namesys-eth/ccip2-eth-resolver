@@ -74,7 +74,7 @@ contract GatewayManager is iERC173, iGatewayManager {
             if (len > 4) len = 4;
             gateways = new string[](len);
             uint256 i;
-            if(bytes8(_recordhash[:8]) == bytes8("https://")){
+            if (bytes8(_recordhash[:8]) == bytes8("https://")) {
                 gateways[0] = string.concat(string(_recordhash), _path, ".json?t={data}");
                 return gateways;
             }
