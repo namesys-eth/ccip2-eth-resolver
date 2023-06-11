@@ -8,4 +8,5 @@ out/
 docs/
 node_modules
 lib
+*.log
 *.lock

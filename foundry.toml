@@ -12,3 +12,5 @@ viaIR = true
 gas_reports = ["CCIP2ETH", "GatewayManager"]
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
+# Foundry "Memory allocation overflow"
+memory_limit = 67108864
