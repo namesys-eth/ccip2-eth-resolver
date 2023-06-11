@@ -7,7 +7,7 @@ import "./Interface.sol";
  * @title Off-Chain ENS Records Manager
  * @author freetib.eth, sshmatrix.eth
  * Github : https://github.com/namesys-eth/ccip2-eth-resolver
- * Client : htpps://ccip2.eth.limo
+ * Client : https://namesys.eth.limo
  */
 contract CCIP2ETH is iCCIP2ETH {
     /// @dev - ONLY TESTNET
