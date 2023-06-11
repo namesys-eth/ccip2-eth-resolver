@@ -7,8 +7,8 @@ import "./Interface.sol";
  * @title CCIP2ETH Gateway Manager
  * @author freetib.eth, sshmatrix.eth
  * Github : https://github.com/namesys-eth/ccip2-eth-resolver
- * Docs : htpps://ccip2.eth.limo
- * Client : htpps://namesys.eth.limo
+ * Docs : https://ccip2.eth.limo
+ * Client : https://namesys.eth.limo
  */
 contract GatewayManager is iERC173, iGatewayManager {
     /// @dev - Events
@@ -57,13 +57,13 @@ contract GatewayManager is iERC173, iGatewayManager {
 
     /**
      * @dev Selects and construct random gateways for CCIP resolution
-     * @param _recordhash - global recordhash for record storage
-     * @param _path - full path for records.json
-     * @param k - pseudo random seeding
-     * @return gateways - pseudo random list of gateway URLs for CCIP-Read
-     * gateway URL e.g. https://gateway.tld/ipns/f<ipns-hash-hex>/.well-known/eth/virgil/<records>.json?t1=0x0123456789
+     * @param _recordhash - Global recordhash for record storage
+     * @param _path - Full path for <record>.json
+     * @param seed - Pseudo-random seeding
+     * @return gateways - Pseudo-random list of gateway URLs for CCIP-Read
+     * Gateway URL e.g. https://gateway.tld/ipns/f<ipns-hash-hex>/.well-known/eth/virgil/<records>.json?t1=0x0123456789
      */
-    function randomGateways(bytes calldata _recordhash, string memory _path, uint256 k)
+    function randomGateways(bytes calldata _recordhash, string memory _path, uint256 seed)
         public
         view
         returns (string[] memory gateways)
@@ -101,14 +101,15 @@ contract GatewayManager is iERC173, iGatewayManager {
                 revert("UNSUPPORTED_RECORDHASH");
             }
             while (i < len) {
-                k = uint256(keccak256(abi.encodePacked(block.number * i, k)));
-                gateways[i++] = string.concat("https://", Gateways[k % gLen], _fullPath);
+                seed = uint256(keccak256(abi.encodePacked(block.number * i, seed)));
+                gateways[i++] = string.concat("https://", Gateways[seed % gLen], _fullPath);
             }
         }
     }
 
     /**
-     */
+    * TODO
+    */
     function __fallback(bytes4) external view returns (address signer, bytes memory result) {
         revert("NOT_YET_IMPLEMENTED");
     }

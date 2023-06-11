@@ -5,16 +5,15 @@ import "forge-std/Test.sol";
 import "src/CCIP2ETH.sol";
 import "src/GatewayManager.sol";
 
-/**
- * @author freetib.eth, sshmatrix.eth
- * @title CCIP2.eth Resolver tester
- */
-
 interface xENS is iENS {
     function setResolver(bytes32 node, address resolver) external;
     function setOwner(bytes32 node, address owner) external;
 }
 
+/**
+ * @author freetib.eth, sshmatrix.eth
+ * @title CCIP2.eth Resolver tester
+ */
 contract CCIP2ETHTest is Test {
     // using Surl for *;
     error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
