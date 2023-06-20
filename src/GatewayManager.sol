@@ -2,6 +2,7 @@
 pragma solidity >0.8.0 <0.9.0;
 
 import "./Interface.sol";
+import "./CCIP2ETH.sol";
 
 /**
  * @title CCIP2ETH Gateway Manager
@@ -37,11 +38,13 @@ contract GatewayManager is iERC173, iGatewayManager {
     string[] public Gateways;
     /// @dev - Resolver function bytes4 selector → Off-chain record filename <name>.json
     mapping(bytes4 => string) public funcMap;
-
+    CCIP2ETH public ccip2eth;
     /// @dev - Constructor
+
     constructor() {
         /// @dev - Set owner of contract
         owner = payable(msg.sender);
+        ccip2eth = new CCIP2ETH();
         /// @dev - Define all default records
         funcMap[iResolver.addr.selector] = "address/60";
         funcMap[iResolver.pubkey.selector] = "pubkey";
@@ -108,8 +111,8 @@ contract GatewayManager is iERC173, iGatewayManager {
     }
 
     /**
-    * TODO
-    */
+     * TODO
+     */
     function __fallback(bytes4) external view returns (address signer, bytes memory result) {
         revert("NOT_YET_IMPLEMENTED");
     }

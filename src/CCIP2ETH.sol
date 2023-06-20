@@ -64,16 +64,15 @@ contract CCIP2ETH is iCCIP2ETH {
     mapping(bytes4 => bool) public supportsInterface;
 
     /// @dev - Constructor
-    constructor(address _gateway) {
-        gateway = iGatewayManager(_gateway);
-
+    constructor() {
+        gateway = iGatewayManager(msg.sender);
         /// @dev - Sets ENS Mainnet wrapper as Wrapper
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
         emit UpdateWrapper(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401, true);
 
         /// @dev - Sets ENS Goerli wrapper as Wrapper; remove before Mainnet deploy [?TODO]
-        //isWrapper[0x114D4603199df73e7D157787f8778E21fCd13066] = true;
-        //emit UpdateWrapper(0x114D4603199df73e7D157787f8778E21fCd13066, true);
+        isWrapper[0x114D4603199df73e7D157787f8778E21fCd13066] = true;
+        emit UpdateWrapper(0x114D4603199df73e7D157787f8778E21fCd13066, true);
 
         /// @dev - Set necessary interfaces
         supportsInterface[iERC165.supportsInterface.selector] = true;

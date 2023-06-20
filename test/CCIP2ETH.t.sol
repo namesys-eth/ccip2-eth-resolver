@@ -19,7 +19,7 @@ contract CCIP2ETHTest is Test {
     error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
 
     CCIP2ETH public ccip2eth;
-    iGatewayManager public gateway;
+    GatewayManager public gateway;
     xENS public ENS = xENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
     uint256 public PrivateKeyOwner = 0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd;
     uint256 public PrivateKeySigner = 0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc;
@@ -30,7 +30,7 @@ contract CCIP2ETHTest is Test {
 
     function setUp() public {
         gateway = new GatewayManager();
-        ccip2eth = new CCIP2ETH(address(gateway));
+        ccip2eth = gateway.ccip2eth();
     }
 
     /// @dev : get some values
@@ -59,14 +59,14 @@ contract CCIP2ETHTest is Test {
         bytes memory _recordhash =
             hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
         vm.prank(_addr);
-        //ENS.setOwner(_namehash, address(this));
+        ENS.setOwner(_namehash, address(this));
         //ENS.setResolver(_namehash, address(ccip2eth));
         ccip2eth.setRecordhash(_namehash, _recordhash);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _namehash);
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
-            abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), _addr, _domain, _path, _request, _recType)
+            abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), address(this), _domain, _path, _request, _recType)
         );
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -90,7 +90,7 @@ contract CCIP2ETHTest is Test {
         _name[1] = "vitalik";
         _name[2] = "eth";
         (bytes32 _namehash, bytes memory _encoded) = utils.Encode(_name);
-        vm.prank(ENS.owner(_namehash));
+        vm.prank(ENS.owner(_namehash)); 
         ENS.setOwner(_namehash, address(this));
         bytes memory _recordhash =
             hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";

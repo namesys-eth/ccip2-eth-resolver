@@ -9,8 +9,9 @@ contract CCIP2ETHDeploy is Script {
     /// @dev : Deploy
     function run() external {
         vm.startBroadcast();
-        GatewayManager manager = new GatewayManager();
-        new CCIP2ETH(address(manager));
+        //GatewayManager manager =
+        new GatewayManager();
+        //new CCIP2ETH(address(manager));
         vm.stopBroadcast();
     }
 }

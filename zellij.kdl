@@ -1,0 +1,19 @@
+layout {
+	pane {
+		pane {}
+		pane split_direction="vertical" {
+			pane command="bash"  {
+				args "-c" "yarn anvil"
+			}
+			pane {
+				pane command="bash"  { 
+					args "-c" "yarn anvilDeploy"
+				}
+			}
+		}
+		pane command="bash"  {
+			args "-c" "zellij list-sessions"
+		}
+	}
+
+}
