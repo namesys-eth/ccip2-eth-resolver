@@ -1,5 +1,5 @@
 import 'dotenv/config'
-console.log(process.env)
+//console.log(process.env)
 import { normalize, namehash } from 'viem/ens'
 import { toHex } from 'viem'
 import { anvil, client, wallet } from './js/clients.js'

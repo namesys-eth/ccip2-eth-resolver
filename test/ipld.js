@@ -39,34 +39,34 @@ let record = {
         eth: {
             ccip2: {
                 address: {
-                    '60.json': { // Ethereum
+                    '60': { // Ethereum
                         data: "0x<prefix><record signer><record signature><approved signature><abi encoded result>",
                         address: "0x<plaintext address>",
                         lastUpdated: '<timestamp>',
                         signedBy: "0x<signer>"
                     },
-                    '1237.json': { // Nostr
+                    '1237': { // Nostr
                         data: "0x<prefix><record signer><record signature><approved signature><abi encoded result>",
                         address: "npub<plaintext address>",
                         lastUpdated: '<timestamp>',
                         signedBy: "0x<signer>"
                     },
-                    "meta.json": [60, 1237] // list
+                    "meta": [60, 1237] // list
                 },
                 text: {
-                    "avatar.json": {
+                    "avatar": {
                         data: "...<abi encoded >",
                         text: "<plaintext avatar>",
                         lastUpdated: '<timestamp>',
                         signedBy: "0x<signer>"
                     },
-                    "github.json": {
+                    "github": {
                         data: "...<abi encoded >",
                         text: "@namesys-eth",
                         lastUpdated: '<timestamp>',
                         signedBy: "0x<signer>"
                     },
-                    "meta.json": ["avatar", "github"]
+                    "meta": ["avatar", "github"]
                 }
             }
         }
@@ -76,10 +76,10 @@ const eth = {
     data: "0x<prefix><record signer><record signature><approved signature><abi encoded result>",
     address: "0x<plaintext address>",
     lastUpdated: '<timestamp>',
-    slip44:60,
-    chainId:1,
-    symbol:"ETH",
-    name:"Ethereum Mainnet",
+    slip44: 60,
+    chainId: 1,
+    symbol: "ETH",
+    name: "Ethereum Mainnet",
     signedBy: "0x<signer>"
 }
 const ethipld = await dag.add(eth)
@@ -88,31 +88,69 @@ const nostr = {
     data: "0x<prefix><record signer><record signature><approved signature><abi encoded result>",
     address: "npub<plaintext address>",
     slip44: 1237,
-    chainId : false,
-    symbol:"NOSTR",
-    name:"Nostr Protocol",
+    chainId: false,
+    symbol: "NOSTR",
+    name: "Nostr Protocol",
     lastUpdated: '<timestamp>',
     signedBy: "0x<signer>"
 }
 const nostripld = await dag.add(nostr)
 
 const addr = {
-    "60.json": ethipld,
-    "1237.json": nostripld,
-    "metadata.json" : [60, 1237]
+    "60": ethipld,
+    "1237": nostripld,
+    "metadata": [60, 1237]
 }
 //const object1 = { hello: 'world' }
-const myImmutableAddress1 = await dag.add(addr)
+const addrs = await dag.add(addr)
 
-const object2 = { address: myImmutableAddress1 }
-const myImmutableAddress2 = await dag.add(object2)
-console.log("1",myImmutableAddress2)
-const retrievedObject = await dag.get(myImmutableAddress2)
-console.log("2",retrievedObject)
-let x = await dag.get(retrievedObject.address)
-console.log("3",x)
-console.log("4",x["60.json"])
+const _wellknown = {
+    ".well-known": {
+        eth: {
+            domain: {
+                address: addrs,
+                "metadata": {
+                    address: [60, 1237],
+                    text: ["avatar", "twitter"]
+                }
+            }
+        },
+        "nostr.json": { // nip05
+            "_": "0xpubkey", //"_" is blank prefix = domain.eth.limo = _@domain.eth.limo
+            "name": "0xpubkey"// 32 bytes hex, name@domain.eth.limo
+        }
+    }
+}
 
+let r = {
+    ".well-known": {
+        "eth": {
+            "domain": {
+                "address": {
+                    "/": "bafyreicwh6bd75rpyo65zg5ku76jhrrqsiwefezqtnx7ocsehya44si3je"
+                },
+                "metadata": {
+                    "text": ["avatar", "twitter"],
+                    "address": [60, 1237]
+                }
+            }
+        }
+    }
+}
+//,}
+const _record = await dag.add(_wellknown)
+console.log("1", _record)
+console.log(typeof(_record))
+const retrievedObject = await dag.get(_record)
+
+console.log(typeof(retrievedObject))
+console.log("2", JSON.stringify(retrievedObject))
+let x = await dag.get(retrievedObject[".well-known"].eth.domain.address)
+let y = await dag.get(x[60])
+console.log("3", x)
+console.log("4", y)
+
+console.log("5", y.data)//await dag.get(y))
 // { hello: 'world' }
 
 //const fs = unixfs(helia)
@@ -120,11 +158,12 @@ console.log("4",x["60.json"])
 // add some UnixFS data
 //const cid = await fs.addBytes(fileData1)
 
-export async function exportCarFile(_cid, _file="record") {
+export async function exportCarFile(_cid, _file = "record") {
     const c = car(helia)
     const { writer, out } = await CarWriter.create(_cid)
     Readable.from(out).pipe(fs.createWriteStream(`./test/${_file}.car`))
     await c.export(_cid, writer)
 }
 
-exportCarFile(myImmutableAddress2)
+//export async function uploadCarFile(_cid, )
+exportCarFile(_record)

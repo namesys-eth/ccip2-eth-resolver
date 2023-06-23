@@ -7,7 +7,8 @@ export const CCIP_GATEWAY = "0x73f820D469aE0642BBf399BEc8FF99da6fcfD845"
 export const CCIP_RESOLVER = "0xd32676dbD18ad202c6A4B75CDfa58FD3f195faAF"
 export const CCIP_DEV = "0x9F04bC8aA8932CafB9D6f6bF964612247E8B73e6"
 import { normalize, namehash } from 'viem/ens'
-import { parseAbi } from 'viem';
+import { parseAbi } from 'viem'
+
 export async function supportsInterface(_sig, _contract) {
     return await client.readContract({
         address: _contract,
