@@ -20,7 +20,6 @@ import { CID } from 'multiformats/cid'
 
 const blockstore = new MemoryBlockstore()
 
-// application-specific data lives in the datastore
 const datastore = new MemoryDatastore()
 
 /*const libp2p = await createLibp2p({
@@ -41,7 +40,7 @@ const libp2p = await createLibp2p({
     datastore,
     addresses: {
         listen: [
-            '/ip4/127.0.0.1/tcp/0'
+            //'/ip4/127.0.0.1/tcp/0'
         ]
     },
     dht: kadDHT({
@@ -49,7 +48,11 @@ const libp2p = await createLibp2p({
             ipns: ipnsValidator
         },
         transports: [
-            tcp()
+            tcp(),
+            webRTC(),
+            webTransport(),
+            webSockets(),
+            //pubsub()
         ],
         selectors: {
             ipns: ipnsSelector
@@ -66,12 +69,11 @@ const libp2p = await createLibp2p({
         noise()
     ],
     streamMuxers: [
-        yamux()
     ],
     peerDiscovery: [
         bootstrap({
             list: [
-                "/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWPT5iaBt7C1GEfG8eD29cBhChCsyWeyxoGPpEkGMMpa3f",
+                /*"/ip4/127.0.0.1/tcp/4001/p2p/12D3KooWPT5iaBt7C1GEfG8eD29cBhChCsyWeyxoGPpEkGMMpa3f",
                 "/ip4/127.0.0.1/udp/4001/quic-v1/p2p/12D3KooWPT5iaBt7C1GEfG8eD29cBhChCsyWeyxoGPpEkGMMpa3f",
                 "/ip4/127.0.0.1/udp/4001/quic-v1/webtransport/certhash/uEiASidIgli9jVl6IAaOQsJvRJVLRiU0MnjPrAA-9NA50lA/certhash/uEiDYQzo7uGFRlnnxv_ufVQfwVv1iJ7S9z8ylnqk1uzSp7A/p2p/12D3KooWPT5iaBt7C1GEfG8eD29cBhChCsyWeyxoGPpEkGMMpa3f",
                 '/dnsaddr/bootstrap.libp2p.io/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN',
@@ -98,25 +100,26 @@ const libp2p = await createLibp2p({
                 "/dns4/bootstrap-0.starpool.in/tcp/12757/p2p/12D3KooWGHpBMeZbestVEWkfdnC9u7p6uFHXL1n7m1ZBqsEmiUzz",
                 "/dns4/bootstrap-4.mainnet.filops.net/tcp/1347/p2p/12D3KooWL6PsFNPhYftrJzGgF5U18hFoaVhfGk7xwzD8yVrHJ3Uc",
                 "/dns4/bootstrap-7.mainnet.filops.net/tcp/1347/p2p/12D3KooWRs3aY1p3juFjPy8gPN95PEQChm2QKGUCAdcDCC4EBMKf",
-                "/dns4/node.glif.io/tcp/1235/p2p/12D3KooWBF8cpp65hp2u9LK5mh19x67ftAam84z9LsfaquTDSBpt",
+                "/dns4/node.glif.io/tcp/1235/p2p/12D3KooWBF8cpp65hp2u9LK5mh19x67ftAam84z9LsfaquTDSBpt",*/
                 "/dns4/bootstrap-1.ipfsmain.cn/tcp/34723/p2p/12D3KooWMKxMkD5DMpSWsW7dBddKxKT7L2GgbNuckz9otxvkvByP"
             ]
         })
     ],
     services: {
-        identify: identifyService()
+        identify: identifyService({
+            agentVersion: "namesys/v0.01",
+            protocolPrefix: "namesys_eth"
+        })
     }
 })
-setTimeout(() => {  console.log("World!"); }, 5000);
 
-
+console.log(identifyService())
 
 const helia = await createHelia({
     datastore,
     blockstore,
     libp2p
 })
-setTimeout(() => {  console.log("World!"); }, 5000);
 
 
 const name = await ipns(helia, [
@@ -129,8 +132,10 @@ import { identity } from "multiformats/bases/identity"
 // create a public key to publish as an IPNS name
 //const keyInfo = await helia.libp2p.keychain.createKey('my-key')
 const peerId = await helia.libp2p.keychain.exportPeerId('self')
-let x = await helia.libp2p.keychain.exportPeerId("self");
-console.log(x)
+let x = await helia.libp2p.keychain.exportPeerId("self")
+
+console.log(x)//await helia.libp2p.keychain.exportKey('self', ""))
+console.log(await helia.libp2p.keychain.importKey("test","mXYRhyP1hnkTO+IrTvrW8Cc3uRZerg+KFv2qUKrgEZTUqLfX3oxaj95m10J71CDY2klyMIuAi+UprGEdzbVCAYsBLQ2tTOQzhy1CRnCR2UY9wY2eZ17hGKOxQgz/yBfcsgJfSO578m1rO4uwXese5fA", ""))
 //console.log(await CID.parse(x.toString(identity), identity.decoder ))
 
 // store some data to publish

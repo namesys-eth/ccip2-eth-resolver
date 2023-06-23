@@ -9,14 +9,14 @@ export const CCIP_DEV = "0x9F04bC8aA8932CafB9D6f6bF964612247E8B73e6"
 import { normalize, namehash } from 'viem/ens'
 import { parseAbi } from 'viem'
 
-export async function supportsInterface(_sig, _contract) {
+export async function supportsInterface(_contract, _sig) {
     return await client.readContract({
         address: _contract,
         abi: parseAbi(["function supportsInterface(bytes4 interfaceID) external view returns (bool)"]),
         args: [_sig]
     })
 }
-console.log("LL", await supportsInterface("0x12345678", "0xd32676dbD18ad202c6A4B75CDfa58FD3f195faAF"))
+console.log("Interface Test", await supportsInterface("0x12345678", "0xd32676dbD18ad202c6A4B75CDfa58FD3f195faAF"))
 export const utf8Decoder = new TextDecoder('utf-8')
 export const utf8Encoder = new TextEncoder()
 
@@ -40,20 +40,6 @@ export async function getEnsOwner(domain) {
         console.error(error)
     }
 }
-export function dnsEncode(domain) {
-    const _domain = normalize(domain)
-    const _labels = _domain.split(".");
-    let _encoded = "0x";
-    for (let i = 0; i < _labels.length; i++) {
-        _encoded += (_labels[i].length).toString(16).padStart(2, "0")
-        _encoded += Array.from(
-            utf8Encoder.encode(_labels[i]),
-            b => b.toString(16).padStart(2, "0")
-        ).join("")
-    }
-    return _encoded += "00"
-}
-
 export async function resolve(domain, data, api = "http://127.0.0.1:8545") {
 
     try {
@@ -80,8 +66,7 @@ export async function resolve(domain, data, api = "http://127.0.0.1:8545") {
 
 }
 
-export async function ethCall(addr, data, api = "http://127.0.0.1:8545") {
-
+export async function ethCall(addr, data, api = "http://127.0.0.1:8545", auth = "") {
     try {
         fetch(api, {
             body: JSON.stringify({
@@ -96,6 +81,7 @@ export async function ethCall(addr, data, api = "http://127.0.0.1:8545") {
             method: 'POST',
             headers: {
                 'content-type': 'application/json',
+                //auth
             }
         }).then((res) => {
             //if (res) return;
@@ -105,13 +91,9 @@ export async function ethCall(addr, data, api = "http://127.0.0.1:8545") {
     }
 
 }
-const ccip2eth = {
-    _addr: {
-        "mainnet": "0xaddr",
-        "goerli": "0xaddr"
-    },
-    ethCall: async (addr, data) => {
-        fetch("http:127.0.0.1:8545", {
+export async function ccipCall(addr, data, api = "http://127.0.0.1:8545", auth = "") {
+    try {
+        fetch(api, {
             body: JSON.stringify({
                 "jsonrpc": "2.0",
                 "method": "eth_call",
@@ -124,9 +106,70 @@ const ccip2eth = {
             method: 'POST',
             headers: {
                 'content-type': 'application/json',
+                //auth
             }
         }).then((res) => {
             //if (res) return;
         })
+    } catch (error) {
+
     }
 }
+
+export async function gatewayCalls(gateways) {
+    let _result = "";
+    for (let i = 0; i < gateways.length; i++) {
+        try {
+            fetch(api, {
+                body: JSON.stringify({
+                    "jsonrpc": "2.0",
+                    "method": "eth_call",
+                    "params": [{
+                        "to": addr,
+                        "data": data
+                    }, "latest"],
+                    "id": Date.now()
+                }),
+                method: 'POST',
+                headers: {
+                    'content-type': 'application/json',
+                    //auth
+                }
+            }).then((res) => {
+                //if (res) return;
+            })
+        } catch (error) {
+
+        }
+        const element = array[i];
+        break;
+    }
+
+}
+/*
+const ccip2eth = {
+    _addr: {
+        "mainnet": "0xaddr",
+        "goerli": "0xaddr"
+    },
+    ethCall: async (addr, data) => {
+        fetch("http://127.0.0.1:8545", {
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                //auth
+            },
+            body: JSON.stringify({
+                "jsonrpc": "2.0",
+                "method": "eth_call",
+                "params": [{
+                    "to": addr,
+                    "data": data
+                }, "latest"],
+                "id": Date.now()
+            })
+        }).then((res) => {
+            //if (res) return;
+        })
+    }
+}*/
