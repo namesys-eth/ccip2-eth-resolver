@@ -3,7 +3,7 @@
 //    BrowserProvider, InfuraProvider
 //} from "ethers"; // add viem
 
-const secp256k1 = require('@noble/secp256k1');
+//const secp256k1 = require('@noble/secp256k1');
 import * as secp256k1 from '@noble/secp256k1'
 import {hkdf} from '@noble/hashes/hkdf'
 import {sha256} from '@noble/hashes/sha256'
@@ -172,6 +172,7 @@ let App = {
         let x = "080112400132f293196df88df8fd916d1ed8be07f69109cc7516aa9ab8e5bde6c7a04f5fb48b94cf6818573d58e71cfd2070920a11e5850394a1f69cbf4131e7755ee57d";
         // key from disk:
         //const loadedBytes = await fs.promises.readFile('myName.key')
+
         const myName2 = await x3Name.from(hexToBytes(x))
         App.LOG.innerHTML += `<br>IPNS: ${myName2.toString()}<br>Key: ` + Buffer(myName2.key.bytes).toString('hex')
 

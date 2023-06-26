@@ -16,7 +16,9 @@ export async function supportsInterface(_contract, _sig) {
         args: [_sig]
     })
 }
+
 console.log("Interface Test", await supportsInterface("0x12345678", "0xd32676dbD18ad202c6A4B75CDfa58FD3f195faAF"))
+
 export const utf8Decoder = new TextDecoder('utf-8')
 export const utf8Encoder = new TextEncoder()
 

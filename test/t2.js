@@ -3,7 +3,7 @@ import 'dotenv/config'
 import { normalize, namehash } from 'viem/ens'
 import { toHex } from 'viem'
 import { anvil, client, wallet } from './js/clients.js'
-import {dnsEncode, supportsInterface} from './js/ccip2.js'
+import {dnsEncode, supportsInterface} from './js/namesys.js'
 console.log("LL", await supportsInterface("0x12345678", "0xd32676dbD18ad202c6A4B75CDfa58FD3f195faAF"))
 
 //import { ccip2abi, ccip2_bytecode, gatewayabi, gateway_bytecode } from './abi.js'

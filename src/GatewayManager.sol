@@ -89,6 +89,7 @@ contract GatewayManager is iERC173, iGatewayManager {
             string memory _fullPath;
             bytes1 _prefix = _recordhash[0];
             if (_prefix == 0xe2) {
+                if()
                 _fullPath = string.concat(
                     "/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}&format=dag-cbor"
                 );

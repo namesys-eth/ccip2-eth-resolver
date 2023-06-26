@@ -10,7 +10,7 @@ import { dagCbor } from '@helia/dag-cbor'
 import { tcp } from '@libp2p/tcp'
 import { webRTC } from '@libp2p/webrtc'
 import { webTransport } from '@libp2p/webtransport'
-import { webSockets} from '@libp2p/websockets'
+import { webSockets } from '@libp2p/websockets'
 import { noise } from '@chainsafe/libp2p-noise'
 import { yamux } from '@chainsafe/libp2p-yamux'
 import { MemoryBlockstore } from 'blockstore-core'
@@ -69,6 +69,7 @@ const libp2p = await createLibp2p({
         noise()
     ],
     streamMuxers: [
+        yamux()
     ],
     peerDiscovery: [
         bootstrap({
@@ -107,7 +108,7 @@ const libp2p = await createLibp2p({
     ],
     services: {
         identify: identifyService({
-            agentVersion: "namesys/v0.01",
+            agentVersion: "namesys/v0.0.1",
             protocolPrefix: "namesys_eth"
         })
     }
@@ -135,9 +136,22 @@ const peerId = await helia.libp2p.keychain.exportPeerId('self')
 let x = await helia.libp2p.keychain.exportPeerId("self")
 
 console.log(x)//await helia.libp2p.keychain.exportKey('self', ""))
-console.log(await helia.libp2p.keychain.importKey("test","mXYRhyP1hnkTO+IrTvrW8Cc3uRZerg+KFv2qUKrgEZTUqLfX3oxaj95m10J71CDY2klyMIuAi+UprGEdzbVCAYsBLQ2tTOQzhy1CRnCR2UY9wY2eZ17hGKOxQgz/yBfcsgJfSO578m1rO4uwXese5fA", ""))
-//console.log(await CID.parse(x.toString(identity), identity.decoder ))
+let pkx = Buffer.from("mXYRhyP1hnkTO+IrTvrW8Cc3uRZerg+KFv2qUKrgEZTUqLfX3oxaj95m10J71CDY2klyMIuAi+UprGEdzbVCAYsBLQ2tTOQzhy1CRnCR2UY9wY2eZ17hGKOxQgz/yBfcsgJfSO578m1rO4uwXese5fA")
+import crypto from 'node:crypto';
+let kk1 = "302a300506032b65700321006d28cf8e17e4682fbe6285e72b21aa26f094d8dbd18f7828358f822b428d069f"
+//let pp = await crypto.createPrivateKey({
+//    format: 'der',
+    //type: 'ed25519',
+//    key: kk1
+//})
 
+const { publicKey, privateKey } = crypto.createPrivateKey({format:"der", type:"spki", key:"0x4c133828137cafea00e746b6b39f2795eacf40b01ab4a09f1c5560fcaeeef8fc"})// ('ed25519');
+const der = privateKey.export({ format: 'der', type: 'pkcs8' }).toString('hex');
+const rawHex = der.substring(32); // can serialize this / use it with libsodium etc...
+
+console.log("N",der, rawHex)
+console.log(await helia.libp2p.keychain.importKey("test", "mXYRhyP1hnkTO+IrTvrW8Cc3uRZerg+KFv2qUKrgEZTUqLfX3oxaj95m10J71CDY2klyMIuAi+UprGEdzbVCAYsBLQ2tTOQzhy1CRnCR2UY9wY2eZ17hGKOxQgz/yBfcsgJfSO578m1rO4uwXese5fA", ""))
+//console.log(await CID.parse(x.toString(identity), identity.decoder ))
 // store some data to publish
 //const peerId = helia.libp2p.keychain.exportPeerId("self");
 const dag = dagCbor(helia)
