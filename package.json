@@ -16,6 +16,7 @@
     "test": "forge test -vvv --rpc-url http://127.0.0.1:8545 --gas-report --watch",
     "ipld": "nodemon ./test/ipld.js",
     "ipns": "nodemon ./test/ipns.js",
+    "sig": "nodemon ./test/js/signRequest.js",
     "dev": "forge fmt && source .env && forge test --fork-url $GOERLI_RPC_URL -vvv --fork-block-number 8897000 --gas-report --watch"
   },
   "devDependencies": {

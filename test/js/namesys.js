@@ -120,9 +120,12 @@ export async function ccipCall(addr, data, api = "http://127.0.0.1:8545", auth =
 
 export async function gatewayCalls(gateways) {
     let _result = "";
+    let _error={}
+    let errCount 
     for (let i = 0; i < gateways.length; i++) {
         try {
-            fetch(api, {
+            fetch(gateways[i], {
+                /*
                 body: JSON.stringify({
                     "jsonrpc": "2.0",
                     "method": "eth_call",
@@ -131,20 +134,20 @@ export async function gatewayCalls(gateways) {
                         "data": data
                     }, "latest"],
                     "id": Date.now()
-                }),
-                method: 'POST',
+                }),*/
+                method: 'GET',
                 headers: {
-                    'content-type': 'application/json',
+                    //'content-type': 'application/json',
                     //auth
                 }
             }).then((res) => {
+                _result = res.json()
                 //if (res) return;
             })
+            return _result;
         } catch (error) {
-
+            _error[i]= error
         }
-        const element = array[i];
-        break;
     }
 
 }

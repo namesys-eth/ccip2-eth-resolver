@@ -1,0 +1,6 @@
+Requesting Signature To Generate Off-Chain Records Manager Key
+
+ENS Domain: vitalik.eth
+Key Type : ECDSA/secp256k1
+Extradata: 0xae6813ac26855dffa22f4635ff665d03082ac8175c1204076eade778f4ce1047
+Signed By: eip155:1:0x00000000

@@ -1,7 +1,10 @@
 import { createWalletClient, createTestClient, createPublicClient, http } from 'viem'
 import { goerli } from 'viem/chains'
+import 'dotenv/config'
 
-const transport = http("http://127.0.0.1:8545")
+export const RPC_URL = process.env.LOCAL_RPC_URL;
+
+const transport = http(RPC_URL)
 
 export const anvil = createTestClient({
   chain: goerli,
