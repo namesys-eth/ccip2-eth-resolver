@@ -66,7 +66,9 @@ contract CCIP2ETHTest is Test {
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _namehash);
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
-            abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), address(this), _domain, _path, _request, _recType)
+            abi.encodePacked(
+                address(ccip2eth), blockhash(block.number - 1), address(this), _domain, _path, _request, _recType
+            )
         );
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -90,7 +92,7 @@ contract CCIP2ETHTest is Test {
         _name[1] = "vitalik";
         _name[2] = "eth";
         (bytes32 _namehash, bytes memory _encoded) = utils.Encode(_name);
-        vm.prank(ENS.owner(_namehash)); 
+        vm.prank(ENS.owner(_namehash));
         ENS.setOwner(_namehash, address(this));
         bytes memory _recordhash =
             hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
@@ -284,9 +286,9 @@ contract CCIP2ETHTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SignerKey, _digest);
         bytes memory _recordSig = abi.encodePacked(r, s, v);
         signRequest = string.concat(
-            "Requesting Signature To Approve ENS Records Signer\n",
+            "Requesting Signature To Approve Off-Chain ENS Records Manager\n",
             "\nENS Domain: domain.eth",
-            "\nApproved Signer: eip155:1:",
+            "\nApproved: eip155:1:",
             gateway.toChecksumAddress(_signer),
             "\nOwner: eip155:1:",
             gateway.toChecksumAddress(_owner)

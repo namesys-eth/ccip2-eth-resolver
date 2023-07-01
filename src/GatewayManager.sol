@@ -89,17 +89,25 @@ contract GatewayManager is iERC173, iGatewayManager {
             string memory _fullPath;
             bytes1 _prefix = _recordhash[0];
             if (_prefix == 0xe2) {
-                if()
-                _fullPath = string.concat(
-                    "/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}&format=dag-cbor"
-                );
+                if (_recordhash[1] == 0xe5) {
+                    _fullPath = string.concat(
+                        "/ipns/f", bytesToHexString(_recordhash, 3), _path, ".json?t={data}&format=dag-cbor"
+                    );
+                } else {
+                    _fullPath = string.concat(
+                        "/api/v0/dag/get?arg=f",
+                        bytesToHexString(_recordhash, 2),
+                        _path,
+                        ".json?t={data}&format=dag-cbor"
+                    );
+                }
             } else if (_prefix == 0xe5) {
                 _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}");
             } else if (_prefix == 0xe3) {
                 _fullPath = string.concat("/ipfs/f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}");
             } else if (_prefix == bytes1("k")) {
                 _fullPath = string.concat("/ipns/", string(_recordhash), _path, ".json?t={data}");
-            } else if (bytes2(_recordhash[:2]) == bytes2("ba")) {
+            } else if (_prefix == bytes1("b")) {
                 _fullPath = string.concat("/ipfs/", string(_recordhash), _path, ".json?t={data}");
             } else {
                 revert("UNSUPPORTED_RECORDHASH");
