@@ -108,9 +108,11 @@ contract GatewayManager is iERC173, iGatewayManager {
     }
 
     /**
-    * TODO
-    */
-    function __fallback(bytes4) external view returns (address signer, bytes memory result) {
+     * TODO
+     */
+    function __fallback(bytes4) external pure returns (address signer, bytes memory result) {
+        signer;
+        result;
         revert("NOT_YET_IMPLEMENTED");
     }
 

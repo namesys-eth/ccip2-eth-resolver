@@ -54,7 +54,7 @@ contract CCIP2ETH is iCCIP2ETH {
      */
     mapping(bytes32 => bytes) public recordhash;
     /// @dev - On-chain singular Manager database
-    /// Note - Manager is someone who can manage off-chain records for a domain on behalf of its owner
+    /// Note - Manager (= isApprovedFor) is someone who can manage off-chain records for a domain on behalf of its owner
     mapping(address => mapping(bytes32 => mapping(address => bool))) public isApprovedFor;
     //mapping(bytes32 => bool) public manager;
     /// @dev - List of all wrapping contracts to be declared in contructor
@@ -238,7 +238,7 @@ contract CCIP2ETH is iCCIP2ETH {
      * @return _redirectRequest - Redirected request
      * @return domain - String-formatted ENS domain
      */
-    function redirectDAppService(bytes calldata _encodedName, bytes calldata _requested)
+    function redirectApplicationService(bytes calldata _encodedName, bytes calldata _requested)
         external
         view
         returns (bytes4 _selector, bytes32 _namehash, bytes memory _redirectRequest, string memory domain)
@@ -346,6 +346,7 @@ contract CCIP2ETH is iCCIP2ETH {
         /// Off-chain signature approving record signer (if signer != owner or on-chain manager)
         bytes memory _approvedSig;
         //address _signedBy;
+        /// @dev CCIP Response Decode
         (_signer, _recordSignature, _approvedSig, result) = abi.decode(response[4:], (address, bytes, bytes, bytes));
         if (_approvedSig.length < 64) {
             require(_signer == _owner || isApprovedFor[_owner][_node][_signer], "INVALID_CALLBACK");
@@ -378,7 +379,7 @@ contract CCIP2ETH is iCCIP2ETH {
                 );
                 require(_signer == iCCIP2ETH(this).signedBy(signRequest, _recordSignature), "BAD_DAPP_SIGNATURE");
                 // Signed IPFS redirect
-                /// TODO - Fix 2nd callback format
+                /// TODO - Fix 2nd callback format [?]
                 revert OffchainLookup(
                     address(this),
                     gateway.randomGateways(
@@ -393,10 +394,10 @@ contract CCIP2ETH is iCCIP2ETH {
             }
             // ENS dApp redirect
             // Result should be DNS encoded; result should NOT be ABI-encoded
-            // Note Last byte is 0x00 meaning end of DNS-encoded stream
+            // Note Last byte is 0x00, meaning end of DNS-encoded stream
             require(result[result.length - 1] == 0x0, "BAD_ENS_ENCODED");
             (bytes4 _sig, bytes32 _redirectNamehash, bytes memory _redirectRequest, string memory _redirectDomain) =
-                CCIP2ETH(this).redirectDAppService(result, _request);
+                CCIP2ETH(this).redirectApplicationService(result, _request);
             signRequest = string.concat(
                 "Requesting Signature To Install DApp Service\n",
                 "\nENS Domain: ",
@@ -548,19 +549,19 @@ contract CCIP2ETH is iCCIP2ETH {
 
     /**
      * @dev To be used for tips or in case some fungible tokens get locked in the contract
-     * @param _token - Token address
+     * @param _tokenContract - Token contract address
      * @param _balance - Amount to release
      */
-    function withdraw(address _token, uint256 _balance) external {
-        iToken(_token).transferFrom(address(this), gateway.owner(), _balance);
+    function withdraw(address _tokenContract, uint256 _balance) external {
+        iToken(_tokenContract).transferFrom(address(this), gateway.owner(), _balance);
     }
 
     /**
      * @dev To be used for tips or in case some non-fungible tokens get locked in the contract
-     * @param _token - Token address
-     * @param _id - Token ID to release
+     * @param _tokenContract - Token contract address
+     * @param _tokenID - Token ID to release
      */
-    function safeWithdraw(address _token, uint256 _id) external {
-        iToken(_token).safeTransferFrom(address(this), gateway.owner(), _id);
+    function safeWithdraw(address _tokenContract, uint256 _tokenID) external {
+        iToken(_tokenContract).safeTransferFrom(address(this), gateway.owner(), _tokenID);
     }
 }
