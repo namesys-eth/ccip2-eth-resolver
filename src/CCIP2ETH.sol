@@ -141,31 +141,6 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /**
-     * @dev Sets recordhash for a deep level N sub1.sub2... subN.domain.eth of a node
-     * Note - Only ENS owner or manager can call
-     * @param _subs - Array of level N subdomain labels
-     * @param _node - Namehash of ENS domain
-     * @param _recordhash - Contenthash to set as recordhash
-     * Note - a.b.c.domain.eth = [a, b, c]
-     */
-    function setDeepRecordhash(string[] calldata _subs, bytes32 _node, bytes calldata _recordhash) external {
-        address _owner = ENS.owner(_node);
-        if (isWrapper[_owner]) {
-            _owner = iToken(_owner).ownerOf(uint256(_node));
-        }
-        require(msg.sender == _owner || isApprovedFor[_owner][_node][msg.sender], "NOT_AUTHORIZED");
-        uint256 len = _subs.length;
-        bytes32 _namehash = _node;
-        unchecked {
-            while (len > 0) {
-                _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_subs[--len]))));
-            }
-        }
-        recordhash[_namehash] = _recordhash;
-        emit RecordhashChanged(msg.sender, _namehash, _recordhash);
-    }
-
-    /**
      * @dev EIP-2544/EIP-3668 core resolve() function; aka CCIP-Read
      * @param name - ENS domain to resolve; must be DNS encoded
      * @param request - Encoding-specific function to resolve

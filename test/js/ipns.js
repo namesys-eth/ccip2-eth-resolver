@@ -108,8 +108,8 @@ const libp2p = await createLibp2p({
     ],
     services: {
         identify: identifyService({
-            agentVersion: "namesys/v0.0.1",
-            protocolPrefix: "namesys_eth"
+            //agentVersion: "namesys/v0.0.1",
+            //protocolPrefix: "namesys_eth"
         })
     }
 })

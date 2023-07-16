@@ -35,7 +35,7 @@ export async function ed25519KeyGen(signer, domain, password = "") {
         const caip10 = `eip155:1:${signer.address}`
         const info = `${caip10}:${domain}`
         const pass = '0x' + bytesToHex(password ? await sha256(`${info}:${password}`) : await sha256(info))
-        const extradata = '0x' + bytesToHex(await sha256(`${caip10}:${domain}:${pass}`)) // hash of hash
+        const extradata = '0x' + bytesToHex(await sha256(`${info}:${pass}`)) // hash of hash
         let msg =
             `Requesting Signature To Generate IPNS Key\n\nENS Domain: ${domain}\nExtradata: 0x${extradata}\nSigned By: ${caip10}`
         const inputKey = await signer.signMessage({ message: msg })
