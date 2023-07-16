@@ -121,7 +121,6 @@ contract GatewayManager is iERC173, iGatewayManager {
      * @param data - full path for records.json
      * @return _jsonPath - path to JSON file containing the queried record
      */
-
     function funcToJson(bytes calldata data) public view returns (string memory _jsonPath) {
         bytes4 func = bytes4(data[:4]);
         if (bytes(funcMap[func]).length > 0) {
