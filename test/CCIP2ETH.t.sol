@@ -35,7 +35,7 @@ contract CCIP2ETHTest is Test {
     }
 
     /// @dev Get some values
-    function test1UtilsSetup() public {
+    function test1_UtilsSetup() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "virgil";
         _name[1] = "eth";
@@ -51,7 +51,7 @@ contract CCIP2ETHTest is Test {
     }
 
     /// @dev Test CCIP-Read call level 2
-    function test2ResolveLevel2() public {
+    function test2_ResolveLevel2() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "ccip2";
         _name[1] = "eth";
@@ -83,9 +83,9 @@ contract CCIP2ETHTest is Test {
         );
         ccip2eth.resolve(_encoded, _request);
     }
+    
     /// @dev Test CCIP-Read call
-
-    function test3ResolveLevel3() public {
+    function test3_ResolveLevel3() public {
         bytes[] memory _name = new bytes[](3);
         _name[0] = "blog";
         _name[1] = "vitalik";
@@ -119,7 +119,7 @@ contract CCIP2ETHTest is Test {
         ccip2eth.resolve(_encoded, _request);
     }
 
-    function test4ResolveLevel7() public {
+    function test4_ResolveLevel7() public {
         bytes[] memory _base = new bytes[](2);
         _base[0] = "vitalik";
         _base[1] = "eth";
@@ -165,8 +165,8 @@ contract CCIP2ETHTest is Test {
         ccip2eth.resolve(_encoded, _request);
     }
 
-    /// @dev : test full end-to-end ccip2eth
-    function test5CCIPCallbackApprovedOnChain() public {
+    /// @dev CCIP2 end-to-end test
+    function test5_CCIPCallbackApprovedOnChain() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "domain";
         _name[1] = "eth";
@@ -228,7 +228,7 @@ contract CCIP2ETHTest is Test {
         assertEq(_result, ccip2eth.__callback(_response, _extraData));
     }
 
-    function test6CCIPCallbackApprovedOffChain() public {
+    function test6_CCIPCallbackApprovedOffChain() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "domain";
         _name[1] = "eth";
@@ -304,7 +304,7 @@ contract CCIP2ETHTest is Test {
         assertEq(_result, ccip2eth.__callback(_response, _extraData));
     }
 
-    function test8CCIPCallbackApprovedOffChain_2() public {
+    function test7_CCIPCallbackApprovedOffChain_WithRealParameters() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "00081";
         _name[1] = "eth";
