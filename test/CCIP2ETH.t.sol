@@ -466,6 +466,91 @@ contract CCIP2ETHTest is Test {
             abi.encodeWithSelector(iCallbackType.signedRecord.selector, _signer, _recordSig, _approvedSig, _result);
         assertEq(_result, ccip2eth.__callback(_response, _extraData));
     }
+
+    /// @dev CCIP end-to-end with off-chain signer and real parameters
+    /// Note Masterhash & recordhash conflict; with priority byte
+    function test8_CCIPFull_HashConflictWithPriority() public {
+        bytes[] memory _name = new bytes[](2);
+        _name[0] = "00081";
+        _name[1] = "eth";
+        (bytes32 _node, bytes memory _encoded) = utils.Encode(_name);
+        bytes1 _priority = hex"00"; // Change this to test
+        uint256 OwnerKey = 0xe76878c781aacf151d3ff3f3e7700e218ac2be0acaf75af707093e769c25914a;
+        uint256 SignerKey = 0x00c91d554965e5f925e981314544c673c9c5a04e5dbbc38267fbc0626235b6e1;
+        address _owner = vm.addr(OwnerKey);
+        address _signer = vm.addr(SignerKey);
+        vm.prank(ENS.owner(_node));
+        ENS.setOwner(_node, _owner);
+        bytes memory _recordhash =
+            hex"e501017200240801122008dd085b86d16226791544f4628c4efc0936c69221fef17dfac843d9713233bb";
+        ccip2eth.setMasterhash(abi.encodePacked(_priority, _recordhash)); // Set masterhash and priority byte to '00'
+        vm.prank(_owner);
+        ccip2eth.setRecordhash(_node, _recordhash); // Set recordhash
+        (string memory _path, string memory _domain) = utils.Format(_encoded);
+        if (_priority == bytes1(hex"01")) {
+            // Update path if masterhash has priority
+            _path = string.concat("eth:", gateway.addressToString(_owner));
+            _domain = _path;
+        }
+        bytes memory _request = abi.encodePacked(iResolver.addr.selector, _node);
+        string memory _recType = gateway.funcToJson(_request);
+        bytes32 _checkHash = keccak256(
+            abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), _owner, _domain, _path, _request, _recType)
+        );
+        bytes memory _extraData = abi.encode(_node, block.number - 1, _node, _checkHash, _domain, _path, _request);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                iENSIP10.OffchainLookup.selector,
+                address(ccip2eth),
+                gateway.randomGateways(
+                    _recordhash, string.concat("/.well-known/", _path, "/", _recType), uint256(_checkHash)
+                ),
+                abi.encodePacked(uint16(block.timestamp / 60)),
+                ccip2eth.__callback.selector,
+                _extraData
+            )
+        );
+        ccip2eth.resolve(_encoded, _request);
+        bytes memory _result = abi.encode(address(0x1111000000000000000000000000000000000001));
+        string memory signRequest = string.concat(
+            "Requesting Signature To Update ENS Record\n",
+            "\nOrigin: ",
+            _domain,
+            "\nRecord Type: address/60",
+            "\nExtradata: 0x",
+            gateway.bytesToHexString(abi.encodePacked(keccak256(_result)), 0),
+            "\nSigned By: eip155:1:",
+            gateway.toChecksumAddress(address(_signer))
+        );
+        bytes32 _digest = keccak256(
+            abi.encodePacked(
+                "\x19Ethereum Signed Message:\n", gateway.uintToString(bytes(signRequest).length), signRequest
+            )
+        );
+        assertTrue(!ccip2eth.approved(_node, _signer));
+        assertTrue(!ccip2eth.isApprovedFor(address(this), _node, _signer));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(SignerKey, _digest);
+        bytes memory _recordSig = abi.encodePacked(r, s, v);
+        signRequest = string.concat(
+            "Requesting Signature To Approve ENS Records Signer\n",
+            "\nOrigin: ",
+            _domain,
+            "\nApproved Signer: eip155:1:",
+            gateway.toChecksumAddress(_signer),
+            "\nOwner: eip155:1:",
+            gateway.toChecksumAddress(_owner)
+        );
+        _digest = keccak256(
+            abi.encodePacked(
+                "\x19Ethereum Signed Message:\n", gateway.uintToString(bytes(signRequest).length), signRequest
+            )
+        );
+        (v, r, s) = vm.sign(OwnerKey, _digest);
+        bytes memory _approvedSig = abi.encodePacked(r, s, v);
+        bytes memory _response =
+            abi.encodeWithSelector(iCallbackType.signedRecord.selector, _signer, _recordSig, _approvedSig, _result);
+        assertEq(_result, ccip2eth.__callback(_response, _extraData));
+    }
 }
 
 /// @dev Utility functions
