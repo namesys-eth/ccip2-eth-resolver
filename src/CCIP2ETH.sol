@@ -54,8 +54,8 @@ contract CCIP2ETH is iCCIP2ETH {
      */
     mapping(bytes32 => bytes) public recordhash;
     /// @dev - On-chain singular Manager database
-    /// Note - Manager (= isApprovedFor) is someone who can manage off-chain records for a domain on behalf of its owner
-    mapping(address => mapping(bytes32 => mapping(address => bool))) public isApprovedFor;
+    /// Note - Manager (= isApprovedSigner) is someone who can manage off-chain records for a domain on behalf of its owner
+    mapping(address => mapping(bytes32 => mapping(address => bool))) public isApprovedSigner;
     //mapping(bytes32 => bool) public manager;
     /// @dev - List of all wrapping contracts to be declared in contructor
     mapping(address => bool) public isWrapper;
@@ -90,7 +90,7 @@ contract CCIP2ETH is iCCIP2ETH {
      * @param _manager - Manager address to check
      */
     function isAuthorized(bytes32 _node, address _owner, address _manager) public view returns (bool) {
-        return (isApprovedFor[_owner][_node][_manager] || ENS.isApprovedForAll(_owner, _manager));
+        return (isApprovedSigner[_owner][_node][_manager] || ENS.isApprovedForAll(_owner, _manager));
     }
 
     /**
@@ -115,7 +115,7 @@ contract CCIP2ETH is iCCIP2ETH {
         if (isWrapper[_owner]) {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
-        require(msg.sender == _owner || isApprovedFor[_owner][_node][msg.sender], "NOT_AUTHORIZED");
+        require(msg.sender == _owner || isApprovedSigner[_owner][_node][msg.sender], "NOT_AUTHORIZED");
         recordhash[_node] = _recordhash;
         emit RecordhashChanged(msg.sender, _node, _recordhash);
     }
@@ -132,7 +132,7 @@ contract CCIP2ETH is iCCIP2ETH {
         if (isWrapper[_owner]) {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
-        if (msg.sender == _owner || isApprovedFor[_owner][_node][msg.sender]) {
+        if (msg.sender == _owner || isApprovedSigner[_owner][_node][msg.sender]) {
             bytes32 _namehash = keccak256(abi.encodePacked(_node, keccak256(bytes(_sub))));
             recordhash[_namehash] = _recordhash;
             emit RecordhashChanged(msg.sender, _namehash, _recordhash);
@@ -209,14 +209,14 @@ contract CCIP2ETH is iCCIP2ETH {
      * @param _domain - String-formatted ENS domain
      * @return  - Whether manager is approved by the owner
      */
-    function OffChainApproved(
+    function approvedSigner(
         address _owner,
         address _approvedSigner,
         bytes32 _node,
         bytes memory _signature,
         string memory _domain
     ) public view returns (bool) {
-        address _signedBy = iCCIP2ETH(this).getSigner(
+        address _Signer = iCCIP2ETH(this).getSigner(
             string.concat(
                 "Requesting Signature To Approve ENS Records Signer\n",
                 "\nENS Domain: ",
@@ -228,7 +228,7 @@ contract CCIP2ETH is iCCIP2ETH {
             ),
             _signature
         );
-        return (_signedBy == _owner || isApprovedFor[_owner][_node][_signedBy]);
+        return (_Signer == _owner || isApprovedSigner[_owner][_node][_Signer]);
     }
 
     /**
@@ -277,13 +277,12 @@ contract CCIP2ETH is iCCIP2ETH {
         bytes4 _type = bytes4(response[:4]);
         /// Off-chain signature approving record signer (if signer != owner or on-chain manager)
         bytes memory _approvedSig;
-        //address _signedBy;
         /// @dev CCIP Response Decode
         (_signer, _recordSignature, _approvedSig, result) = abi.decode(response[4:], (address, bytes, bytes, bytes));
         if (_approvedSig.length < 64) {
-            require(_signer == _owner || isApprovedFor[_owner][_node][_signer], "INVALID_CALLBACK");
+            require(_signer == _owner || isApprovedSigner[_owner][_node][_signer], "INVALID_CALLBACK");
         } else {
-            require(OffChainApproved(_owner, _signer, _node, _approvedSig, _domain), "BAD_RECORD_APPROVAL");
+            require(approvedSigner(_owner, _signer, _node, _approvedSig, _domain), "BAD_RECORD_APPROVAL");
         }
         if (_type == iCallbackType.signedRecord.selector) {
             signRequest = string.concat(
@@ -301,10 +300,6 @@ contract CCIP2ETH is iCCIP2ETH {
         } else {
             return gateway.__fallback(response, extradata);
         }
-    }
-
-    function __callback2(bytes calldata response, bytes calldata extradata) external view returns (bytes memory) {
-        // DO NOTHING
     }
 
     /**
@@ -354,7 +349,7 @@ contract CCIP2ETH is iCCIP2ETH {
      * @param _approval - Status to set
      */
     function approve(bytes32 _node, address _signer, bool _approval) external {
-        isApprovedFor[msg.sender][_node][_signer] = _approval;
+        isApprovedSigner[msg.sender][_node][_signer] = _approval;
         emit Approved(msg.sender, _node, _signer, _approval);
     }
 
@@ -369,7 +364,7 @@ contract CCIP2ETH is iCCIP2ETH {
         require(len == _signer.length, "BAD_LENGTH");
         require(len == _approval.length, "BAD_LENGTH");
         for (uint256 i = 0; i < len; i++) {
-            isApprovedFor[msg.sender][_node[i]][_signer[i]] = _approval[i];
+            isApprovedSigner[msg.sender][_node[i]][_signer[i]] = _approval[i];
             emit Approved(msg.sender, _node[i], _signer[i], _approval[i]);
         }
     }
@@ -384,7 +379,7 @@ contract CCIP2ETH is iCCIP2ETH {
         if (isWrapper[_owner]) {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
-        return _owner == _signer || isApprovedFor[_owner][_node][_signer];
+        return _owner == _signer || isApprovedSigner[_owner][_node][_signer];
     }
 
     /**

@@ -108,10 +108,9 @@ contract GatewayManager is iERC173, iGatewayManager {
     }
 
     /**
-     * TODO
+     * Note - Future Feature in CCIP2-v2
      */
-    function __fallback(bytes4) external pure returns (address signer, bytes memory result) {
-        signer;
+    function __fallback(bytes memory response, bytes memory extradata) external pure returns (bytes memory result) {
         result;
         revert("NOT_YET_IMPLEMENTED");
     }

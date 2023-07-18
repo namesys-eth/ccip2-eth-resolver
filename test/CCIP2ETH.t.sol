@@ -83,7 +83,7 @@ contract CCIP2ETHTest is Test {
         );
         ccip2eth.resolve(_encoded, _request);
     }
-    
+
     /// @dev Test subdomain-level CCIP-Read call
     function test3_ResolveLevel3() public {
         bytes[] memory _name = new bytes[](3);
@@ -221,7 +221,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         assertTrue(ccip2eth.approved(_node, _signer));
-        assertTrue(ccip2eth.isApprovedFor(address(this), _node, _signer));
+        assertTrue(ccip2eth.isApprovedSigner(address(this), _node, _signer));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SignerKey, _digest);
         bytes memory _signature = abi.encodePacked(r, s, v);
         bytes memory _response =
@@ -283,7 +283,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         assertTrue(!ccip2eth.approved(_node, _signer));
-        assertTrue(!ccip2eth.isApprovedFor(address(this), _node, _signer));
+        assertTrue(!ccip2eth.isApprovedSigner(address(this), _node, _signer));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SignerKey, _digest);
         bytes memory _recordSig = abi.encodePacked(r, s, v);
         signRequest = string.concat(
@@ -360,7 +360,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         assertTrue(!ccip2eth.approved(_node, _signer));
-        assertTrue(!ccip2eth.isApprovedFor(address(this), _node, _signer));
+        assertTrue(!ccip2eth.isApprovedSigner(address(this), _node, _signer));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SignerKey, _digest);
         bytes memory _recordSig = abi.encodePacked(r, s, v);
         signRequest = string.concat(
