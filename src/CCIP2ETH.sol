@@ -2,6 +2,7 @@
 pragma solidity >0.8.0 <0.9.0;
 
 import "./Interface.sol";
+//import "forge-std/Test.sol";
 
 /**
  * @title Off-Chain ENS Records Manager
@@ -32,6 +33,7 @@ contract CCIP2ETH is iCCIP2ETH {
     event ThankYou(address indexed addr, uint256 indexed value);
     event UpdateGatewayManager(address indexed oldAddr, address indexed newAddr);
     event RecordhashChanged(address indexed owner, bytes32 indexed node, bytes contenthash);
+    event MasterhashChanged(address indexed wallet, bytes masterhash);
     event UpdateWrapper(address indexed newAddr, bool indexed status);
     event Approved(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
     event UpdateSupportedInterface(bytes4 indexed sig, bool indexed status);
@@ -48,11 +50,12 @@ contract CCIP2ETH is iCCIP2ETH {
 
     /// Mappings
     /**
-     * @dev - Global contenthash storing all other records
+     * @dev - Domain-specific contenthash storing all other records
      * @notice - Should be in generic ENS contenthash format or base32/base36 string URL format
-     *
      */
     mapping(bytes32 => bytes) public recordhash;
+    /// @dev - Wallet-specific contenthash storing records for all names owned by a wallet
+    mapping(address => bytes) public masterhash;
     /// @dev - On-chain singular Manager database
     /// Note - Manager (= isApprovedSigner) is someone who can manage off-chain records for a domain on behalf of its owner
     mapping(address => mapping(bytes32 => mapping(address => bool))) public isApprovedSigner;
@@ -105,6 +108,50 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /**
+     * @dev Slices and returns all except first N bytes
+     * @param _bytes - Bytes to slice
+     * @param _index - Index to start slicing at
+     * @return - Returns sliced bytes
+     */
+    function selectBytes(bytes memory _bytes, uint256 _index) public pure returns (bytes memory) {
+        bytes memory __bytes = new bytes(_bytes.length - 1);
+        for (uint256 i = _index; i < _bytes.length; i++) {
+            __bytes[i - _index] = _bytes[i];
+        }
+        return __bytes;
+    }
+
+    /**
+     * @dev Sorts the priority order when both masterhash and recordhash exist
+     * @param _node - Namehash of ENS domain
+     * @param _owner - Owner of ENS domain
+     * @return - Returns masterhash or recordhash according to priority rules
+     */
+    function breakParity(bytes32 _node, address _owner) public view returns (bytes memory, bytes1) {
+        // Set default priority to recordhash
+        bytes memory _toReturn = recordhash[_node];
+        bytes1 _flag = bytes1(0x00);
+        // Check if recordhash exists
+        if (_toReturn.length > 0) {
+            // Check if masterhash also exists
+            if (masterhash[_owner].length > 0) {
+                if (uint8(masterhash[_owner][0]) > 0) {
+                    // Prioritize masterhash otherwise
+                    // Note: Must strip first byte before returning value and append identifier
+                    _toReturn = selectBytes(masterhash[_owner], 1);
+                    _flag = bytes1(0x01);
+                }
+            }
+        } else if (masterhash[_owner].length > 0) {
+            // Use masterhash only if no recordhash exists
+            // Note: Identifier for masterhash is appended
+            _toReturn = selectBytes(masterhash[_owner], 1);
+            _flag = bytes1(0x01);
+        }
+        return (_toReturn, _flag);
+    }
+
+    /**
      * @dev Sets recordhash for a node
      * Note - Only ENS owner or manager can call
      * @param _node - Namehash of ENS domain
@@ -121,19 +168,30 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /**
+     * @dev Sets masterhash for a wallet
+     * Note - Sets a common masterhash for all names owns by a wallet
+     * Note - Only works with off-chain approved signer
+     * @param _encodedMasterhash - Masterhash to set as recordhash
+     */
+    function setMasterhash(bytes calldata _encodedMasterhash) external {
+        masterhash[msg.sender] = _encodedMasterhash;
+        emit MasterhashChanged(msg.sender, _encodedMasterhash);
+    }
+
+    /**
      * @dev Sets recordhash for a level 1 sub.domain.eth of a node
      * Note - Only ENS owner or manager can call
-     * @param _sub - Level 1 Subdomain label
+     * @param _subdomain - Level 1 Subdomain label
      * @param _node - Namehash of ENS domain
      * @param _recordhash - Contenthash to set as recordhash
      */
-    function setSubRecordhash(string calldata _sub, bytes32 _node, bytes calldata _recordhash) external {
+    function setSubRecordhash(string calldata _subdomain, bytes32 _node, bytes calldata _recordhash) external {
         address _owner = ENS.owner(_node);
         if (isWrapper[_owner]) {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
         if (msg.sender == _owner || isApprovedSigner[_owner][_node][msg.sender]) {
-            bytes32 _namehash = keccak256(abi.encodePacked(_node, keccak256(bytes(_sub))));
+            bytes32 _namehash = keccak256(abi.encodePacked(_node, keccak256(bytes(_subdomain))));
             recordhash[_namehash] = _recordhash;
             emit RecordhashChanged(msg.sender, _namehash, _recordhash);
         } else {
@@ -167,23 +225,33 @@ contract CCIP2ETH is iCCIP2ETH {
             bytes32 _namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[--index])));
             bytes32 _node;
             bytes memory _recordhash;
+            bytes1 _identifier = bytes1(0x00); // Set default priority flag to recordhash
             while (index > 0) {
                 _namehash = keccak256(abi.encodePacked(_namehash, keccak256(_labels[--index])));
+                address __owner = ENS.owner(_namehash);
+                // @TODO Redundant if-else [?][!]
                 if (ENS.recordExists(_namehash)) {
+                    // If ENS record exists on-chain
                     _node = _namehash;
-                    _recordhash = recordhash[_node];
-                } else if (bytes(recordhash[_namehash]).length > 0) {
-                    _recordhash = recordhash[_namehash];
+                    (_recordhash, _identifier) = breakParity(_node, __owner);
+                } else if (bytes(recordhash[_namehash]).length > 0 || bytes(masterhash[__owner]).length > 0) {
+                    // If ENS record does not exist, e.g. off-chain (sub)domain [?]
+                    (_recordhash, _identifier) = breakParity(_namehash, __owner);
                 }
             }
-
             if (_recordhash.length == 0) {
                 revert("RECORD_NOT_SET");
             }
             string memory _recType = gateway.funcToJson(request); // Filename for the requested record
             address _owner = ENS.owner(_node);
+            // Update ownership if domain is wrapped
             if (isWrapper[_owner]) {
                 _owner = iToken(_owner).ownerOf(uint256(_node));
+            }
+            // Update path & domain if masterhash is used
+            if (_identifier == bytes1(0x01)) {
+                _path = string.concat("eth:", gateway.addressToString(_owner));
+                _domain = _path;
             }
             bytes32 _checkHash = keccak256(
                 abi.encodePacked(this, blockhash(block.number - 1), _owner, _domain, _path, request, _recType)
@@ -219,7 +287,7 @@ contract CCIP2ETH is iCCIP2ETH {
         address _Signer = iCCIP2ETH(this).getSigner(
             string.concat(
                 "Requesting Signature To Approve ENS Records Signer\n",
-                "\nENS Domain: ",
+                "\nOrigin: ",
                 _domain,
                 "\nApproved Signer: eip155:1:",
                 gateway.toChecksumAddress(_approvedSigner),
@@ -287,7 +355,7 @@ contract CCIP2ETH is iCCIP2ETH {
         if (_type == iCallbackType.signedRecord.selector) {
             signRequest = string.concat(
                 "Requesting Signature To Update ENS Record\n",
-                "\nENS Domain: ",
+                "\nOrigin: ",
                 _domain,
                 "\nRecord Type: ",
                 _recType,
