@@ -168,38 +168,6 @@ contract GatewayManager is iERC173, iGatewayManager {
     }
 
     /**
-     * @dev Converts address to string
-     * @param _addr - address
-     * @return - string formatted address
-     */
-    function addressToString(address _addr) public pure returns (string memory) {
-        bytes32 value = bytes32(uint256(uint160(_addr)));
-        bytes memory alphabet = "0123456789abcdef";
-        bytes memory str = new bytes(42);
-        str[0] = "0";
-        str[1] = "x";
-        for (uint256 i = 0; i < 20; i++) {
-            str[2 + i * 2] = alphabet[uint8(value[i + 12] >> 4)];
-            str[3 + i * 2] = alphabet[uint8(value[i + 12] & 0x0f)];
-        }
-        return string(str);
-    }
-
-    /**
-     * @dev Slices and returns all except first N bytes
-     * @param _bytes - Bytes to slice
-     * @param _index - Index to start slicing at
-     * @return - Returns sliced bytes
-     */
-    function selectBytes(bytes memory _bytes, uint256 _index) public pure returns (bytes memory) {
-        bytes memory __bytes = new bytes(_bytes.length - 1);
-        for (uint256 i = _index; i < _bytes.length; i++) {
-            __bytes[i - _index] = _bytes[i];
-        }
-        return __bytes;
-    }
-
-    /**
      * @dev UINT to number string
      * @param value - UINT value
      * @return - string formatted UINT

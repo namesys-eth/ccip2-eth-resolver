@@ -33,7 +33,6 @@ contract CCIP2ETH is iCCIP2ETH {
     event ThankYou(address indexed addr, uint256 indexed value);
     event UpdateGatewayManager(address indexed oldAddr, address indexed newAddr);
     event RecordhashChanged(address indexed owner, bytes32 indexed node, bytes contenthash);
-    event MasterhashChanged(address indexed wallet, bytes masterhash);
     event UpdateWrapper(address indexed newAddr, bool indexed status);
     event Approved(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
     event UpdateSupportedInterface(bytes4 indexed sig, bool indexed status);
@@ -54,8 +53,6 @@ contract CCIP2ETH is iCCIP2ETH {
      * @notice - Should be in generic ENS contenthash format or base32/base36 string URL format
      */
     mapping(bytes32 => bytes) public recordhash;
-    /// @dev - Wallet-specific contenthash storing records for all names owned by a wallet
-    mapping(address => bytes) public masterhash;
     /// @dev - On-chain singular Manager database
     /// Note - Manager (= isApprovedSigner) is someone who can manage off-chain records for a domain on behalf of its owner
     mapping(address => mapping(bytes32 => mapping(address => bool))) public isApprovedSigner;
@@ -108,36 +105,6 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /**
-     * @dev Sorts the priority order when both masterhash and recordhash exist
-     * @param _node - Namehash of ENS domain
-     * @param _owner - Owner of ENS domain
-     * @return - Returns masterhash or recordhash according to priority rules
-     */
-    function breakParity(bytes32 _node, address _owner) public view returns (bytes memory, bytes1) {
-        // Set default priority to recordhash
-        bytes memory _toReturn = recordhash[_node];
-        bytes1 _flag = bytes1(0x00);
-        // Check if recordhash exists
-        if (_toReturn.length > 0) {
-            // Check if masterhash also exists
-            if (masterhash[_owner].length > 0) {
-                if (uint8(masterhash[_owner][0]) > 0) {
-                    // Prioritize masterhash otherwise
-                    // Note: Must strip first byte before returning value and append identifier
-                    _toReturn = gateway.selectBytes(masterhash[_owner], 1);
-                    _flag = bytes1(0x01);
-                }
-            }
-        } else if (masterhash[_owner].length > 0) {
-            // Use masterhash only if no recordhash exists
-            // Note: Identifier for masterhash is appended
-            _toReturn = gateway.selectBytes(masterhash[_owner], 1);
-            _flag = bytes1(0x01);
-        }
-        return (_toReturn, _flag);
-    }
-
-    /**
      * @dev Sets recordhash for a node
      * Note - Only ENS owner or manager can call
      * @param _node - Namehash of ENS domain
@@ -151,17 +118,6 @@ contract CCIP2ETH is iCCIP2ETH {
         require(msg.sender == _owner || isApprovedSigner[_owner][_node][msg.sender], "NOT_AUTHORIZED");
         recordhash[_node] = _recordhash;
         emit RecordhashChanged(msg.sender, _node, _recordhash);
-    }
-
-    /**
-     * @dev Sets masterhash for a wallet
-     * Note - Sets a common masterhash for all names owns by a wallet
-     * Note - Only works with off-chain approved signer
-     * @param _encodedMasterhash - Masterhash to set as recordhash
-     */
-    function setMasterhash(bytes calldata _encodedMasterhash) external {
-        masterhash[msg.sender] = _encodedMasterhash;
-        emit MasterhashChanged(msg.sender, _encodedMasterhash);
     }
 
     /**
@@ -211,18 +167,16 @@ contract CCIP2ETH is iCCIP2ETH {
             bytes32 _namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[--index])));
             bytes32 _node;
             bytes memory _recordhash;
-            bytes1 _identifier = bytes1(0x00); // Set default priority flag to recordhash
             while (index > 0) {
                 _namehash = keccak256(abi.encodePacked(_namehash, keccak256(_labels[--index])));
-                address __owner = ENS.owner(_namehash);
                 // @TODO Redundant if-else [?][!]
                 if (ENS.recordExists(_namehash)) {
                     // If ENS record exists on-chain
                     _node = _namehash;
-                    (_recordhash, _identifier) = breakParity(_node, __owner);
-                } else if (bytes(recordhash[_namehash]).length > 0 || bytes(masterhash[__owner]).length > 0) {
+                    _recordhash = recordhash[_node];
+                } else if (bytes(recordhash[_namehash]).length > 0) {
                     // If ENS record does not exist, e.g. off-chain (sub)domain [?]
-                    (_recordhash, _identifier) = breakParity(_namehash, __owner);
+                    _recordhash = recordhash[_namehash];
                 }
             }
             if (_recordhash.length == 0) {
@@ -233,11 +187,6 @@ contract CCIP2ETH is iCCIP2ETH {
             // Update ownership if domain is wrapped
             if (isWrapper[_owner]) {
                 _owner = iToken(_owner).ownerOf(uint256(_node));
-            }
-            // Update path & domain if masterhash is used
-            if (_identifier == bytes1(0x01)) {
-                _path = string.concat("eth:", gateway.addressToString(_owner));
-                _domain = _path;
             }
             bytes32 _checkHash = keccak256(
                 abi.encodePacked(this, blockhash(block.number - 1), _owner, _domain, _path, request, _recType)
@@ -273,7 +222,7 @@ contract CCIP2ETH is iCCIP2ETH {
         address _Signer = iCCIP2ETH(this).getSigner(
             string.concat(
                 "Requesting Signature To Approve ENS Records Signer\n",
-                "\nOrigin: ",
+                "\nENS Domain: ",
                 _domain,
                 "\nApproved Signer: eip155:1:",
                 gateway.toChecksumAddress(_approvedSigner),
@@ -341,7 +290,7 @@ contract CCIP2ETH is iCCIP2ETH {
         if (_type == iCallbackType.signedRecord.selector) {
             signRequest = string.concat(
                 "Requesting Signature To Update ENS Record\n",
-                "\nOrigin: ",
+                "\nENS Domain: ",
                 _domain,
                 "\nRecord Type: ",
                 _recType,
