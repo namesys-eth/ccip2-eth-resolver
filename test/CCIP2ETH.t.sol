@@ -50,7 +50,7 @@ contract CCIP2ETHTest is Test {
         assertEq(_domain, string("virgil.eth"));
     }
 
-    /// @dev Test CCIP-Read call level 2
+    /// @dev Test CCIP-Read call for a domain
     function test2_ResolveLevel2() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "ccip2";
@@ -84,7 +84,7 @@ contract CCIP2ETHTest is Test {
         ccip2eth.resolve(_encoded, _request);
     }
     
-    /// @dev Test CCIP-Read call
+    /// @dev Test subdomain-level CCIP-Read call
     function test3_ResolveLevel3() public {
         bytes[] memory _name = new bytes[](3);
         _name[0] = "blog";
@@ -119,6 +119,7 @@ contract CCIP2ETHTest is Test {
         ccip2eth.resolve(_encoded, _request);
     }
 
+    /// @dev Test deep CCIP-Read call
     function test4_ResolveLevel7() public {
         bytes[] memory _base = new bytes[](2);
         _base[0] = "vitalik";
@@ -165,7 +166,7 @@ contract CCIP2ETHTest is Test {
         ccip2eth.resolve(_encoded, _request);
     }
 
-    /// @dev CCIP2 end-to-end test
+    /// @dev CCIP2 end-to-end test with on-chain signer
     function test5_CCIPCallbackApprovedOnChain() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "domain";
@@ -228,6 +229,7 @@ contract CCIP2ETHTest is Test {
         assertEq(_result, ccip2eth.__callback(_response, _extraData));
     }
 
+    /// @dev CCIP2 end-to-end test with off-chain signer (with fake parameters)
     function test6_CCIPCallbackApprovedOffChain() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "domain";
@@ -304,6 +306,7 @@ contract CCIP2ETHTest is Test {
         assertEq(_result, ccip2eth.__callback(_response, _extraData));
     }
 
+    /// @dev CCIP2 end-to-end test with off-chain signer and real parameters
     function test7_CCIPCallbackApprovedOffChain_WithRealParameters() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "00081";
