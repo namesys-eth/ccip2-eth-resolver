@@ -186,6 +186,20 @@ contract GatewayManager is iERC173, iGatewayManager {
     }
 
     /**
+     * @dev Slices and returns all except first N bytes
+     * @param _bytes - Bytes to slice
+     * @param _index - Index to start slicing at
+     * @return - Returns sliced bytes
+     */
+    function selectBytes(bytes memory _bytes, uint256 _index) public pure returns (bytes memory) {
+        bytes memory __bytes = new bytes(_bytes.length - 1);
+        for (uint256 i = _index; i < _bytes.length; i++) {
+            __bytes[i - _index] = _bytes[i];
+        }
+        return __bytes;
+    }
+
+    /**
      * @dev UINT to number string
      * @param value - UINT value
      * @return - string formatted UINT

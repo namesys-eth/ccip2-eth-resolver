@@ -108,20 +108,6 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /**
-     * @dev Slices and returns all except first N bytes
-     * @param _bytes - Bytes to slice
-     * @param _index - Index to start slicing at
-     * @return - Returns sliced bytes
-     */
-    function selectBytes(bytes memory _bytes, uint256 _index) public pure returns (bytes memory) {
-        bytes memory __bytes = new bytes(_bytes.length - 1);
-        for (uint256 i = _index; i < _bytes.length; i++) {
-            __bytes[i - _index] = _bytes[i];
-        }
-        return __bytes;
-    }
-
-    /**
      * @dev Sorts the priority order when both masterhash and recordhash exist
      * @param _node - Namehash of ENS domain
      * @param _owner - Owner of ENS domain
@@ -138,14 +124,14 @@ contract CCIP2ETH is iCCIP2ETH {
                 if (uint8(masterhash[_owner][0]) > 0) {
                     // Prioritize masterhash otherwise
                     // Note: Must strip first byte before returning value and append identifier
-                    _toReturn = selectBytes(masterhash[_owner], 1);
+                    _toReturn = gateway.selectBytes(masterhash[_owner], 1);
                     _flag = bytes1(0x01);
                 }
             }
         } else if (masterhash[_owner].length > 0) {
             // Use masterhash only if no recordhash exists
             // Note: Identifier for masterhash is appended
-            _toReturn = selectBytes(masterhash[_owner], 1);
+            _toReturn = gateway.selectBytes(masterhash[_owner], 1);
             _flag = bytes1(0x01);
         }
         return (_toReturn, _flag);

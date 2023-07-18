@@ -47,6 +47,7 @@ interface iGatewayManager is iERC173 {
         view
         returns (string[] memory gateways);
     function uintToString(uint256 value) external pure returns (string memory);
+    function selectBytes(bytes memory value, uint256 _index) external pure returns (bytes memory);
     function addressToString(address _address) external pure returns (string memory);
     function bytesToHexString(bytes calldata _buffer, uint256 _start) external pure returns (string memory);
     function funcToJson(bytes calldata data) external view returns (string memory _jsonPath);
