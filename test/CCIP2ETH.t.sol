@@ -50,7 +50,7 @@ contract CCIP2ETHTest is Test {
         assertEq(_domain, string("virgil.eth"));
     }
 
-    /// @dev Test CCIP-Read call level 2
+    /// @dev Test CCIP-Read call for a domain
     function test2_ResolveLevel2() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "ccip2";
@@ -83,8 +83,8 @@ contract CCIP2ETHTest is Test {
         );
         ccip2eth.resolve(_encoded, _request);
     }
-    /// @dev Test CCIP-Read call
 
+    /// @dev Test subdomain-level CCIP-Read call
     function test3_ResolveLevel3() public {
         bytes[] memory _name = new bytes[](3);
         _name[0] = "blog";
@@ -120,6 +120,7 @@ contract CCIP2ETHTest is Test {
         ccip2eth.resolve(_encoded, _request);
     }
 
+    /// @dev Test deep CCIP-Read call
     function test4_ResolveLevel7() public {
         bytes[] memory _base = new bytes[](2);
         _base[0] = "vitalik";
@@ -165,7 +166,7 @@ contract CCIP2ETHTest is Test {
         ccip2eth.resolve(_encoded, _request);
     }
 
-    /// @dev CCIP end-to-end with on-chain signer
+    /// @dev CCIP end-to-end test with on-chain signer
     function test5_CCIPCallbackApprovedOnChain() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "domain";
@@ -221,7 +222,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         assertTrue(ccip2eth.approved(_node, _signer));
-        assertTrue(ccip2eth.isApprovedFor(address(this), _node, _signer));
+        assertTrue(ccip2eth.isApprovedSigner(address(this), _node, _signer));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SignerKey, _digest);
         bytes memory _signature = abi.encodePacked(r, s, v);
         bytes memory _response =
@@ -229,7 +230,7 @@ contract CCIP2ETHTest is Test {
         assertEq(_result, ccip2eth.__callback(_response, _extraData));
     }
 
-    /// @dev CCIP end-to-end with off-chain signer (with fake parameters)
+    /// @dev CCIP end-to-end test with off-chain signer (with fake parameters)
     function test6_CCIPCallbackApprovedOffChain() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "domain";
@@ -284,7 +285,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         assertTrue(!ccip2eth.approved(_node, _signer));
-        assertTrue(!ccip2eth.isApprovedFor(address(this), _node, _signer));
+        assertTrue(!ccip2eth.isApprovedSigner(address(this), _node, _signer));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SignerKey, _digest);
         bytes memory _recordSig = abi.encodePacked(r, s, v);
         signRequest = string.concat(
@@ -528,7 +529,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         assertTrue(!ccip2eth.approved(_node, _signer));
-        assertTrue(!ccip2eth.isApprovedFor(address(this), _node, _signer));
+        assertTrue(!ccip2eth.isApprovedSigner(address(this), _node, _signer));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SignerKey, _digest);
         bytes memory _recordSig = abi.encodePacked(r, s, v);
         signRequest = string.concat(

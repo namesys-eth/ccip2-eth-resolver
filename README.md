@@ -17,7 +17,7 @@
 
 ## Specification
 
-### a) CCIP-Read Resolver (EIP2544/EIP3688)
+### a) CCIP-Read Resolver (EIP-2544/EIP-3688)
 
 This specification is an extension of ENSIP-10 (EIP-2544/EIP-3688) using mutable and immutable storage pointers for off-chain records storage.
 
@@ -27,8 +27,11 @@ function resolve(bytes calldata name, bytes calldata data) external view returns
 
 ### b) Off-chain Records Storage Format
 
-~~For this specification to make practical sense, we expect the~~ ~~`contenhash` to be of IPNS type, other storage pointers work out of box too. IPNS hashes are key-based decentralized storage pointers that only need to be added once to on-chain storage by the user.~~
-IPNS hashes can in turn serve as proxy and point to upgradeable IPFS or IPLD content. In the parent IPNS directory, the records must be stored in the [RFC-8615](https://www.rfc-editor.org/rfc/rfc8615) compliant `.well-known` directory format. ENS records for any name `sub.domain.eth` must then be stored in JSON format under a [reverse-DNS](https://en.wikipedia.org/wiki/Reverse_domain_name_notation) style directory path using `/` instead of `.` as separator, i.e. in format `ipfs://<hash>/.well-known/eth/domain/sub/<record>.json`.
+CCIP2 relies on IPNS hashes serving as proxies to upgradeable IPFS or IPLD content. In the parent IPNS directory, the records must be stored in the [RFC-8615](https://www.rfc-editor.org/rfc/rfc8615) compliant `.well-known` directory format. ENS records for any name `sub.domain.eth` must then be stored in JSON format under a [reverse-DNS](https://en.wikipedia.org/wiki/Reverse_domain_name_notation) style directory path using `/` instead of `.` as separator, i.e. in format `ipfs://<hash>/.well-known/eth/domain/sub/<record>.json`.
+
+### c) Global records
+
+CCIP2 also offers the experimental feature
 
 **1. Some Examples:**
 
