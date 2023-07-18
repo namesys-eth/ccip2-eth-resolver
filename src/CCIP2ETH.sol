@@ -206,7 +206,7 @@ contract CCIP2ETH is iCCIP2ETH {
      * @return result - Triggers Off-chain Lookup
      * Note - Return value is not used
      */
-    function resolve(bytes calldata name, bytes calldata request) external view returns (bytes memory result) {
+    function resolve(bytes calldata name, bytes calldata request) external view returns (bytes memory) {
         unchecked {
             /// @dev - DNSDecode() routine
             uint256 index = 1;
@@ -366,6 +366,7 @@ contract CCIP2ETH is iCCIP2ETH {
             );
             require(_signer == iCCIP2ETH(this).getSigner(signRequest, _recordSignature), "BAD_SIGNED_RECORD");
         } else {
+            _namehash;
             return gateway.__fallback(response, extradata);
         }
     }

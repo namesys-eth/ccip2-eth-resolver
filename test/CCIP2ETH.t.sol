@@ -364,7 +364,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         assertTrue(!ccip2eth.approved(_node, _signer));
-        assertTrue(!ccip2eth.isApprovedFor(address(this), _node, _signer));
+        assertTrue(!ccip2eth.isApprovedSigner(address(this), _node, _signer));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SignerKey, _digest);
         bytes memory _recordSig = abi.encodePacked(r, s, v);
         signRequest = string.concat(
@@ -444,7 +444,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         assertTrue(!ccip2eth.approved(_node, _signer));
-        assertTrue(!ccip2eth.isApprovedFor(address(this), _node, _signer));
+        assertTrue(!ccip2eth.isApprovedSigner(address(this), _node, _signer));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SignerKey, _digest);
         bytes memory _recordSig = abi.encodePacked(r, s, v);
         signRequest = string.concat(
