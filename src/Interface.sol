@@ -55,11 +55,8 @@ interface iGatewayManager is iERC173 {
 
     function addFuncMap(bytes4 _func, string calldata _name) external;
     function addGateway(string calldata _domain) external;
-    //function addGateways(string[] calldata _domains) external;
     function removeGateway(uint256 _index) external;
-    //function removeGateways(uint256[] memory _indexes) external;
     function replaceGateway(uint256 _index, string calldata _domain) external;
-    //function replaceGateways(uint256[] calldata _indexes, string[] calldata _domains) external;
 }
 
 interface iUtils {}

@@ -17,7 +17,7 @@
 
 ## Specification
 
-### a) CCIP-Read Resolver (EIP2544/EIP3688)
+### a) CCIP-Read Resolver (EIP-2544/EIP-3688)
 
 This specification is an extension of ENSIP-10 (EIP-2544/EIP-3688) using mutable and immutable storage pointers for off-chain records storage.
 
@@ -27,8 +27,11 @@ function resolve(bytes calldata name, bytes calldata data) external view returns
 
 ### b) Off-chain Records Storage Format
 
-~~For this specification to make practical sense, we expect the~~ ~~`contenhash` to be of IPNS type, other storage pointers work out of box too. IPNS hashes are key-based decentralized storage pointers that only need to be added once to on-chain storage by the user.~~ 
-IPNS hashes can in turn serve as proxy and point to upgradeable IPFS or IPLD content. In the parent IPNS directory, the records must be stored in the [RFC-8615](https://www.rfc-editor.org/rfc/rfc8615) compliant `.well-known` directory format. ENS records for any name `sub.domain.eth` must then be stored in JSON format under a [reverse-DNS](https://en.wikipedia.org/wiki/Reverse_domain_name_notation) style directory path using `/` instead of `.` as separator, i.e. in format `ipfs://<hash>/.well-known/eth/domain/sub/<record>.json`.
+CCIP2 relies on IPNS hashes serving as proxies to upgradeable IPFS or IPLD content. In the parent IPNS directory, the records must be stored in the [RFC-8615](https://www.rfc-editor.org/rfc/rfc8615) compliant `.well-known` directory format. ENS records for any name `sub.domain.eth` must then be stored in JSON format under a [reverse-DNS](https://en.wikipedia.org/wiki/Reverse_domain_name_notation) style directory path using `/` instead of `.` as separator, i.e. in format `ipfs://<hash>/.well-known/eth/domain/sub/<record>.json`.
+
+### c) Global records
+
+CCIP2 also offers the experimental feature
 
 **1. Some Examples:**
 
@@ -83,7 +86,7 @@ Note: If the JSON data is signed by the Registrant of `domain.eth`, it must be p
 
 ### --
 
-### Records manager process 
+### Records manager process
 
 - `signKey/0` (`K0`): EOA, owner key from connected wallet, secp256k1
 - `signKey/N`: Deterministic records signer key/s under `K0`, secp256k1
@@ -100,6 +103,6 @@ A) Initial setup/Registration:
    * Users are free to use any supported mutable and immutable storage pointers. IPFS, IPNS+IPFS, \*IPNS+IPLD, IPLD+Redirect. \*Other ENS contenthash types are also supported. (*@dev add tests for all, experimental)   
 3) `TX2`: Owner sets `ipnsKey/0` as recordhash for `domain.eth`
 
-B) Records Update Process (IPFS OR IPNS+IPFS) 
+B) Records Update Process (IPFS OR IPNS+IPFS)
 1) Check recordhash for `domain.eth`, resolve and read `./.well-known/eth/domain/<ccip2-meta>.json` (* it's a json with all latest records so we don't have to resolve whole directory)
 2) ..
