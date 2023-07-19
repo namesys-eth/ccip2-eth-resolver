@@ -36,7 +36,7 @@ interface iCCIP2ETH is iENSIP10 {
         external
         view
         returns (address _signer);
-    function setRecordhash(bytes32 _node, bytes calldata _contenthash) external;
+    function setRecordhash(string[] memory _subdomains, bytes32 _node, bytes calldata _contenthash) external;
     function recordhash(bytes32 _node) external view returns (bytes memory _contenthash);
 }
 
@@ -54,7 +54,6 @@ interface iGatewayManager is iERC173 {
         external
         view
         returns (bytes memory result);
-    function chunk(bytes calldata _b, uint256 _start, uint256 _end) external pure returns (bytes memory);
     function addFuncMap(bytes4 _func, string calldata _name) external;
     function addGateway(string calldata _domain) external;
     function removeGateway(uint256 _index) external;
@@ -97,5 +96,12 @@ interface iCallbackType {
         bytes memory recordSignature, // Signature from signer for result value
         bytes memory approvedSignature, // bytes1(..) IF signer is owner or on-chain manager
         bytes memory result // ABI-encoded result
+    ) external view returns (bytes memory);
+
+    function signedRedirect(
+        address recordSigner, // Owner OR On-chain Manager OR Off-chain Manager
+        bytes memory recordSignature, // Signature from signer for redirect value
+        bytes memory approvedSignature, // bytes1(..) IF signer is owner or on-chain manager
+        bytes memory redirect // ABI-encoded recordhash OR DNS-encoded domain.eth to redirect
     ) external view returns (bytes memory);
 }
