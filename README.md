@@ -74,9 +74,9 @@ To ensure secure record resolution, records must be signed by either the owner o
 
 \* This is the user's web-facing contenthash contained inside the recordhash
 
-\† Name is not implemented as reverse record; users must use the official ENS on-chain reverse record for that feature
+† Name is not implemented as reverse record; users must use the official ENS on-chain reverse record for that feature
 
-\‡ Available in v1.1
+‡ Available in v1.1
 
 ## CCIP2.ETH Gateways
 
