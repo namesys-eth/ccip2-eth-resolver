@@ -47,7 +47,6 @@ contract CCIP2ETH is iCCIP2ETH {
     /// @dev - On-chain singular Manager database
     /// Note - Manager (= isApprovedSigner) is someone who can manage off-chain records for a domain on behalf of its owner
     mapping(address => mapping(bytes32 => mapping(address => bool))) public isApprovedSigner;
-    //mapping(bytes32 => bool) public manager;
     /// @dev - List of all wrapping contracts to be declared in contructor
     mapping(address => bool) public isWrapper;
 
@@ -61,10 +60,6 @@ contract CCIP2ETH is iCCIP2ETH {
         /// @dev - Sets ENS Mainnet wrapper as Wrapper
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
         emit UpdatedWrapper(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401, true);
-
-        /// @dev - Sets ENS Goerli wrapper as Wrapper; remove before Mainnet deploy [?TODO]
-        //isWrapper[0x114D4603199df73e7D157787f8778E21fCd13066] = true;
-        //emit UpdatedWrapper(0x114D4603199df73e7D157787f8778E21fCd13066, true);
 
         /// @dev - Set necessary interfaces
         supportsInterface[iERC165.supportsInterface.selector] = true;
@@ -96,32 +91,37 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /**
-     * @dev Sets recordhash for a node (and subdomains, if provided)
-     * Note - Only ENS owner or manager can call
-     * @param _subdomains - Array of level subdomain labels; can be empty for domain.eth
-     * Note - a.b.c.domain.eth = [a, b, c]
-     * @param _node - Namehash of ENS domain
-     * @param _recordhash - Contenthash to set as recordhash
+     * @dev Sets recordhash for a (sub)node or ownerhash for an owner
+     * Note - Only ENS owner or manager of node can call
+     * @param _subdomain - Subdomain labels; a.b.c.domain.eth = [a, b, c]
+     * Note - Provide '[]' value for setting recordhash for domain.eth
+     * @param _node - Namehash of domain.eth
+     * Note - Provide 'bytes32(0)' for setting ownerhash
+     * @param _contenthash - Contenthash to set as recordhash or ownerhash
      */
-    function setRecordhash(string[] calldata _subdomains, bytes32 _node, bytes calldata _recordhash) external {
+    function setRecordhash(string[] calldata _subdomain, bytes32 _node, bytes calldata _contenthash) external {
         bytes32 _namehash = _node;
         if (_node == bytes32(0)) {
-            ownerhash[msg.sender] = _recordhash;
+            // Set ownerhash if no node is provided
+            ownerhash[msg.sender] = _contenthash;
         } else {
+            // Set recordhash otherwise
             address _owner = ENS.owner(_node);
             if (isWrapper[_owner]) {
                 _owner = iToken(_owner).ownerOf(uint256(_node));
             }
             require(msg.sender == _owner || isApprovedSigner[_owner][_node][msg.sender], "NOT_AUTHORIZED");
-            uint256 len = _subdomains.length;
+            // Update sub(domain) namehash if subdomain labels are provided
+            uint256 len = _subdomain.length;
             unchecked {
                 while (len > 0) {
-                    _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_subdomains[--len]))));
+                    _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_subdomain[--len]))));
                 }
             }
-            recordhash[_namehash] = _recordhash;
+            // Set recordhash for the (sub)node
+            recordhash[_namehash] = _contenthash;
         }
-        emit RecordhashChanged(msg.sender, _namehash, _recordhash);
+        emit RecordhashChanged(msg.sender, _namehash, _contenthash);
     }
 
     /**
@@ -152,22 +152,20 @@ contract CCIP2ETH is iCCIP2ETH {
             bytes memory _recordhash;
             while (index > 0) {
                 _namehash = keccak256(abi.encodePacked(_namehash, keccak256(_labels[--index])));
-                // @TODO Redundant if-else [?][!]
-                if (ENS.recordExists(_namehash)) {
-                    // If ENS record exists on-chain
+                // Check if sub(domain) exists on-chain or off-chain
+                if (ENS.recordExists(_namehash) || bytes(recordhash[_namehash]).length > 0) {
                     _node = _namehash;
-                    _recordhash = recordhash[_node];
-                } else if (bytes(recordhash[_namehash]).length > 0) {
-                    // If ENS record does not exist, e.g. off-chain (sub)domain [?]
                     _recordhash = recordhash[_namehash];
                 }
             }
             address _owner = ENS.owner(_node);
             if (_recordhash.length == 0) {
+                // Check if recordhash exists
                 if (ownerhash[_owner].length == 0) {
+                    // Check if ownerhash exists, if no recordhash is found
                     revert("RECORD_NOT_SET");
                 }
-                _recordhash = ownerhash[_owner];
+                _recordhash = ownerhash[_owner]; // Fallback to ownerhash in absence of recordhash
             }
             string memory _recType = gateway.funcToJson(request); // Filename for the requested record
             // Update ownership if domain is wrapped
@@ -190,7 +188,7 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /**
-     * @dev Redirects the CCIP-Read request
+     * @dev Redirects the CCIP-Read request to another ENS Domain
      * @param _encoded - ENS domain to resolve; must be DNS encoded
      * @param _requested - Originally requested encoding-specific function to resolve
      * @return _selector - Redirected function selector
@@ -313,6 +311,7 @@ contract CCIP2ETH is iCCIP2ETH {
             require(approvedSigner(_owner, _signer, _node, _approvedSig, _domain), "BAD_RECORD_APPROVAL");
         }
         if (_type == iCallbackType.signedRecord.selector) {
+            /// @dev If 'signedRecord()' bytes4 selector; handles signed records
             signRequest = string.concat(
                 "Requesting Signature To Update Record\n",
                 "\nDomain: ",
@@ -326,9 +325,10 @@ contract CCIP2ETH is iCCIP2ETH {
             );
             require(_signer == iCCIP2ETH(this).getSigner(signRequest, _recordSignature), "BAD_SIGNED_RECORD");
         } else if (_type == iCallbackType.signedRedirect.selector) {
+            /// @dev If 'signedRedirect()' bytes4 selector; handles redirected records
             if (result[0] == 0x0) {
                 signRequest = string.concat(
-                    "Requesting Signature To Redirect ENS Records\n",
+                    "Requesting Signature To Redirect Records\n",
                     "\nENS Domain: ",
                     _domain, // <dapp>.domain.eth
                     "\nExtradata: ",
@@ -378,6 +378,7 @@ contract CCIP2ETH is iCCIP2ETH {
                 revert("BAD_RESOLVER_FUNCTION");
             }
         } else {
+            /// @dev Future features in __fallback
             _namehash;
             return gateway.__fallback(response, extradata);
         }
