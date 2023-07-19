@@ -64,17 +64,19 @@ To ensure secure record resolution, records must be signed by either the owner o
 | Text Records | `text(bytes32 node, string memory key)` | `text/<key>.json` |
 | Ethereum Address | `addr(bytes32 node)` | `address/60.json` |
 | Contenthash* | `contenthash(bytes32 node)` | `contenthash.json` |
-| Multichain Address | `addr(bytes32 node, uint coinType)`| `address/<coinType>.json` |
+| Multichain Address‡ | `addr(bytes32 node, uint coinType)`| `address/<coinType>.json` |
 | Public Key | `pubkey(bytes32 node)`| `pubkey.json` |
-| Name** | `name(bytes32 node)`| `name.json` |
-| Interface | `interfaceImplementer(bytes32 node, bytes4 _selector)`| `interface/0x<bytes4Selector>.json` |
-| ABI | `ABI(bytes32 node, uint256 contentTypes)`| `abi/<contentTypes>.json` |
-| Zonehash | `zonehash(bytes32 node)`| `dnsrecord/zonehash.json` |
-| DNS Record | `dnsRecord(bytes32 node, bytes name, uint16 resource) `| `dnsrecord/<resource>.json` |
+| Name† | `name(bytes32 node)`| `name.json` |
+| Interface‡ | `interfaceImplementer(bytes32 node, bytes4 _selector)`| `interface/0x<bytes4Selector>.json` |
+| ABI‡ | `ABI(bytes32 node, uint256 contentTypes)`| `abi/<contentTypes>.json` |
+| Zonehash‡ | `zonehash(bytes32 node)`| `dns/zonehash.json` |
+| DNS Record‡ | `dnsRecord(bytes32 node, bytes name, uint16 resource) `| `dns/<record>.json` |
 
-\* This is the user's web-facing contenthash contained inside the recordhash or masterhash
+\* This is the user's web-facing contenthash contained inside the recordhash
 
-\*\* Name is not implemented as reverse record; users must use the official ENS on-chain reverse record for that feature.
+† Name is not implemented as reverse record; users must use the official ENS on-chain reverse record for that feature
+
+‡ Available in v1.1
 
 ## CCIP2.ETH Gateways
 

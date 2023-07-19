@@ -47,7 +47,7 @@ contract GatewayManager is iERC173, iGatewayManager {
         funcMap[iResolver.pubkey.selector] = "pubkey";
         funcMap[iResolver.name.selector] = "name";
         funcMap[iResolver.contenthash.selector] = "contenthash";
-        funcMap[iResolver.zonehash.selector] = "dns/zone";
+        funcMap[iResolver.zonehash.selector] = "dns/zonehash";
         /// @dev - Set initial list of secondary gateways
         Gateways.push("dweb.link");
         emit AddGateway("dweb.link");
@@ -314,9 +314,5 @@ contract GatewayManager is iERC173, iGatewayManager {
      */
     function safeWithdraw(address _token, uint256 _id) external {
         iToken(_token).safeTransferFrom(THIS, owner, _id);
-    }
-
-    function chunk(bytes calldata _b, uint256 _start, uint256 _end) external pure returns (bytes memory) {
-        return _b[_start:(_end > _start ? _end : _b.length)];
     }
 }
