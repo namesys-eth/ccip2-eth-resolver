@@ -43,7 +43,7 @@ contract CCIP2ETH is iCCIP2ETH {
      */
     mapping(bytes32 => bytes) public recordhash;
     /// @dev - Owner-specific contenthash storing records for all names owned by a wallet
-    mapping(address => bytes) public ownerhash;
+    mapping(bytes32 => bytes) public ownerhash;
     /// @dev - On-chain singular Manager database
     /// Note - Manager (= isApprovedSigner) is someone who can manage off-chain records for a domain on behalf of its owner
     mapping(address => mapping(bytes32 => mapping(address => bool))) public isApprovedSigner;
@@ -65,7 +65,6 @@ contract CCIP2ETH is iCCIP2ETH {
         supportsInterface[iERC165.supportsInterface.selector] = true;
         supportsInterface[iENSIP10.resolve.selector] = true;
         supportsInterface[type(iERC173).interfaceId] = true;
-        supportsInterface[iCCIP2ETH.recordhash.selector] = true;
         supportsInterface[iCCIP2ETH.setRecordhash.selector] = true;
     }
 
@@ -103,7 +102,7 @@ contract CCIP2ETH is iCCIP2ETH {
         bytes32 _namehash = _node;
         if (_node == bytes32(0)) {
             // Set ownerhash if no node is provided
-            ownerhash[msg.sender] = _contenthash;
+            ownerhash[keccak256(abi.encodePacked(msg.sender))] = _contenthash;
         } else {
             // Set recordhash otherwise
             address _owner = ENS.owner(_node);
@@ -161,11 +160,12 @@ contract CCIP2ETH is iCCIP2ETH {
             address _owner = ENS.owner(_node);
             if (_recordhash.length == 0) {
                 // Check if recordhash exists
-                if (ownerhash[_owner].length == 0) {
+                bytes32 _addrhash = keccak256(abi.encodePacked(_owner));
+                if (ownerhash[_addrhash].length == 0) {
                     // Check if ownerhash exists, if no recordhash is found
                     revert("RECORD_NOT_SET");
                 }
-                _recordhash = ownerhash[_owner]; // Fallback to ownerhash in absence of recordhash
+                _recordhash = ownerhash[_addrhash]; // Fallback to ownerhash in absence of recordhash
             }
             string memory _recType = gateway.funcToJson(request); // Filename for the requested record
             // Update ownership if domain is wrapped
