@@ -190,7 +190,7 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /**
-     * @dev Redirects the CCIP-Read request
+     * @dev Redirects the CCIP-Read request to another ENS Domain
      * @param _encoded - ENS domain to resolve; must be DNS encoded
      * @param _requested - Originally requested encoding-specific function to resolve
      * @return _selector - Redirected function selector
@@ -313,6 +313,7 @@ contract CCIP2ETH is iCCIP2ETH {
             require(approvedSigner(_owner, _signer, _node, _approvedSig, _domain), "BAD_RECORD_APPROVAL");
         }
         if (_type == iCallbackType.signedRecord.selector) {
+            /// @dev If 'signedRecord()' bytes4 selector; handles signed records
             signRequest = string.concat(
                 "Requesting Signature To Update Record\n",
                 "\nDomain: ",
@@ -326,6 +327,7 @@ contract CCIP2ETH is iCCIP2ETH {
             );
             require(_signer == iCCIP2ETH(this).getSigner(signRequest, _recordSignature), "BAD_SIGNED_RECORD");
         } else if (_type == iCallbackType.signedRedirect.selector) {
+            /// @dev If 'signedRedirect()' bytes4 selector; handles redirected records
             if (result[0] == 0x0) {
                 signRequest = string.concat(
                     "Requesting Signature To Redirect ENS Records\n",
@@ -378,6 +380,7 @@ contract CCIP2ETH is iCCIP2ETH {
                 revert("BAD_RESOLVER_FUNCTION");
             }
         } else {
+            /// @dev Future features in __fallback
             _namehash;
             return gateway.__fallback(response, extradata);
         }

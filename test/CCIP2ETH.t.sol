@@ -411,6 +411,7 @@ contract CCIP2ETHTest is Test {
             hex"e501017200240801122008dd085b86d16226791544f4628c4efc0936c69221fef17dfac843d9713233bb";
         vm.prank(_owner);
         ccip2eth.setRecordhash(_subdomains, _node, _recordhash); // Set recordhash for 'hello.world.domain.eth'
+        _encoded;
     }
 }
 
