@@ -5,7 +5,7 @@ import "./Interface.sol";
 
 /**
  * @title CCIP2ETH Gateway Manager
- * @author freetib.eth, sshmatrix.eth
+ * @author freetib.eth, sshmatrix.eth [https://github.com/namesys-eth]
  * Github : https://github.com/namesys-eth/ccip2-eth-resolver
  * Docs : https://ccip2.eth.limo
  * Client : https://namesys.eth.limo
@@ -135,11 +135,11 @@ contract GatewayManager is iERC173, iGatewayManager {
         } else if (func == iResolver.ABI.selector) {
             _jsonPath = string.concat("abi/", uintToString(abi.decode(data[36:], (uint256))));
         } else if (func == iResolver.dnsRecord.selector || func == iOverloadResolver.dnsRecord.selector) {
-            // e.g, `.well-known/eth/domain/dns/<resource>.json`
+            // e.g, `.well-known/eth/domain/dns/<record>.json`
             uint256 resource;
             if (data.length == 100) {
-                // 4+32+32+32
-                (, resource) = abi.decode(data[36:], (bytes32, uint256)); // actual uint16
+                // 4 + 32 + 32 + 32 = 100
+                (, resource) = abi.decode(data[36:], (bytes32, uint256)); // Expect uint16
             } else {
                 (, resource) = abi.decode(data[36:], (bytes, uint256));
             }
@@ -225,6 +225,23 @@ contract GatewayManager is iERC173, iGatewayManager {
         uint8 _b;
         for (uint256 i = 0; i < len; i++) {
             _b = uint8(_buffer[i + _start]);
+            result[i * 2] = b16[_b / 16];
+            result[(i * 2) + 1] = b16[_b % 16];
+        }
+        return string(result);
+    }
+
+    /**
+     * @dev Convert bytes32 to hex-formatted string
+     * @param _buffer - Bytes32 buffer to convert
+     * @return - Output hex-formatted string
+     */
+    function bytes32ToHexString(bytes32 _buffer) public pure returns (string memory) {
+        bytes memory result = new bytes(64);
+        bytes memory b16 = bytes("0123456789abcdef");
+        uint8 _b;
+        for (uint256 i = 0; i < 32; i++) {
+            _b = uint8(_buffer[i]);
             result[i * 2] = b16[_b / 16];
             result[(i * 2) + 1] = b16[_b % 16];
         }
