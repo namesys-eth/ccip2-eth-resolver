@@ -63,7 +63,7 @@ contract CCIP2ETHTest is Test {
         vm.prank(_addr);
         //ENS.setOwner(_namehash, address(this));
         //ENS.setResolver(_namehash, address(ccip2eth));
-        ccip2eth.setRecordhash(_subdomains, _namehash, _recordhash);
+        ccip2eth.setRecordhash(_namehash, _recordhash);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _namehash);
         string memory _recType = gateway.funcToJson(_request);
@@ -83,6 +83,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         ccip2eth.resolve(_encoded, _request);
+        _subdomains;
     }
 
     /// @dev Test subdomain-level CCIP-Read call
@@ -98,7 +99,7 @@ contract CCIP2ETHTest is Test {
         ENS.setOwner(_namehash, address(this));
         bytes memory _recordhash =
             hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
-        ccip2eth.setRecordhash(_subdomains, _namehash, _recordhash);
+        ccip2eth.setSubRecordhash(_subdomains, _namehash, _recordhash);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.text.selector, _namehash, abi.encode(string("avatar")));
         string memory _recType = gateway.funcToJson(_request);
@@ -120,6 +121,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         ccip2eth.resolve(_encoded, _request);
+        _subdomains;
     }
 
     /// @dev Test deep CCIP-Read call
@@ -134,7 +136,7 @@ contract CCIP2ETHTest is Test {
         ENS.setOwner(_baseNode, address(this)); // Owner records set at level 2 only
         bytes memory _recordhash =
             hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
-        ccip2eth.setRecordhash(_subdomains, _baseNode, _recordhash);
+        ccip2eth.setRecordhash(_baseNode, _recordhash);
 
         bytes[] memory _name = new bytes[](7);
         _name[0] = "never";
@@ -167,6 +169,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         ccip2eth.resolve(_encoded, _request);
+        _subdomains;
     }
 
     /// @dev CCIP end-to-end test with on-chain signer
@@ -185,7 +188,7 @@ contract CCIP2ETHTest is Test {
         ccip2eth.approve(_node, _signer, true);
         bytes memory _recordhash =
             hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
-        ccip2eth.setRecordhash(_subdomains, _node, _recordhash);
+        ccip2eth.setRecordhash(_node, _recordhash);
 
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _node);
@@ -211,13 +214,13 @@ contract CCIP2ETHTest is Test {
         ccip2eth.resolve(_encoded, _request);
         bytes memory _result = abi.encode(address(this));
         string memory signRequest = string.concat(
-            "Requesting Signature To Update Record\n",
-            "\nDomain: ",
+            "Requesting Signature To Update ENS Record\n",
+            "\nENS Domain: ",
             _domain,
-            "\nType: address/60",
+            "\nRecord Type: address/60",
             "\nExtradata: 0x",
             gateway.bytesToHexString(abi.encodePacked(keccak256(_result)), 0),
-            "\nSigner: eip155:1:",
+            "\nSigned By: eip155:1:",
             gateway.toChecksumAddress(address(_signer))
         );
         bytes32 _digest = keccak256(
@@ -232,6 +235,7 @@ contract CCIP2ETHTest is Test {
         bytes memory _response =
             abi.encodeWithSelector(iCallbackType.signedRecord.selector, _signer, _signature, bytes("0"), _result);
         assertEq(_result, ccip2eth.__callback(_response, _extraData));
+        _subdomains;
     }
 
     /// @dev CCIP end-to-end test with off-chain signer (with fake parameters)
@@ -251,7 +255,7 @@ contract CCIP2ETHTest is Test {
         bytes memory _recordhash =
             hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
         vm.prank(_owner);
-        ccip2eth.setRecordhash(_subdomains, _node, _recordhash);
+        ccip2eth.setRecordhash(_node, _recordhash);
 
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _node);
@@ -275,13 +279,13 @@ contract CCIP2ETHTest is Test {
         ccip2eth.resolve(_encoded, _request);
         bytes memory _result = abi.encode(address(this));
         string memory signRequest = string.concat(
-            "Requesting Signature To Update Record\n",
-            "\nDomain: ",
+            "Requesting Signature To Update ENS Record\n",
+            "\nENS Domain: ",
             _domain,
-            "\nType: address/60",
+            "\nRecord Type: address/60",
             "\nExtradata: 0x",
             gateway.bytesToHexString(abi.encodePacked(keccak256(_result)), 0),
-            "\nSigner: eip155:1:",
+            "\nSigned By: eip155:1:",
             gateway.toChecksumAddress(address(_signer))
         );
         bytes32 _digest = keccak256(
@@ -294,11 +298,13 @@ contract CCIP2ETHTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SignerKey, _digest);
         bytes memory _recordSig = abi.encodePacked(r, s, v);
         signRequest = string.concat(
-            "Requesting Signature To Approve Records Signer\n",
-            "\nDomain: domain.eth",
+            "Requesting Signature To Approve ENS Records Signer\n",
+            "\nENS Domain: domain.eth",
             "\nApproved Signer: eip155:1:",
             gateway.toChecksumAddress(_signer),
-            "\nOwner: eip155:1:",
+            "\nExtradata: 0x",
+            gateway.bytes32ToHexString(keccak256(abi.encodePacked(_owner, _signer))),
+            "\nSigned By: eip155:1:",
             gateway.toChecksumAddress(_owner)
         );
         _digest = keccak256(
@@ -311,6 +317,7 @@ contract CCIP2ETHTest is Test {
         bytes memory _response =
             abi.encodeWithSelector(iCallbackType.signedRecord.selector, _signer, _recordSig, _approvedSig, _result);
         assertEq(_result, ccip2eth.__callback(_response, _extraData));
+        _subdomains;
     }
 
     /// @dev CCIP end-to-end with off-chain signer and real parameters
@@ -330,7 +337,7 @@ contract CCIP2ETHTest is Test {
         bytes memory _recordhash =
             hex"e501017200240801122008dd085b86d16226791544f4628c4efc0936c69221fef17dfac843d9713233bb";
         vm.prank(_owner);
-        ccip2eth.setRecordhash(_subdomains, _node, _recordhash); // Set recordhash
+        ccip2eth.setRecordhash(_node, _recordhash); // Set recordhash
 
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request = abi.encodePacked(iResolver.addr.selector, _node);
@@ -354,13 +361,13 @@ contract CCIP2ETHTest is Test {
         ccip2eth.resolve(_encoded, _request);
         bytes memory _result = abi.encode(address(0x1111000000000000000000000000000000000001));
         string memory signRequest = string.concat(
-            "Requesting Signature To Update Record\n",
-            "\nDomain: ",
+            "Requesting Signature To Update ENS Record\n",
+            "\nENS Domain: ",
             _domain,
-            "\nType: address/60",
+            "\nRecord Type: address/60",
             "\nExtradata: 0x",
             gateway.bytesToHexString(abi.encodePacked(keccak256(_result)), 0),
-            "\nSigner: eip155:1:",
+            "\nSigned By: eip155:1:",
             gateway.toChecksumAddress(address(_signer))
         );
         bytes32 _digest = keccak256(
@@ -373,12 +380,14 @@ contract CCIP2ETHTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(SignerKey, _digest);
         bytes memory _recordSig = abi.encodePacked(r, s, v);
         signRequest = string.concat(
-            "Requesting Signature To Approve Records Signer\n",
-            "\nDomain: ",
+            "Requesting Signature To Approve ENS Records Signer\n",
+            "\nENS Domain: ",
             _domain,
             "\nApproved Signer: eip155:1:",
             gateway.toChecksumAddress(_signer),
-            "\nOwner: eip155:1:",
+            "\nExtradata: 0x",
+            gateway.bytes32ToHexString(keccak256(abi.encodePacked(_owner, _signer))),
+            "\nSigned By: eip155:1:",
             gateway.toChecksumAddress(_owner)
         );
         _digest = keccak256(
@@ -391,6 +400,7 @@ contract CCIP2ETHTest is Test {
         bytes memory _response =
             abi.encodeWithSelector(iCallbackType.signedRecord.selector, _signer, _recordSig, _approvedSig, _result);
         assertEq(_result, ccip2eth.__callback(_response, _extraData));
+        _subdomains;
     }
 
     /// @dev Test setting deep recordhash
@@ -410,8 +420,18 @@ contract CCIP2ETHTest is Test {
         bytes memory _recordhash =
             hex"e501017200240801122008dd085b86d16226791544f4628c4efc0936c69221fef17dfac843d9713233bb";
         vm.prank(_owner);
-        ccip2eth.setRecordhash(_subdomains, _node, _recordhash); // Set recordhash for 'hello.world.domain.eth'
+        ccip2eth.setSubRecordhash(_subdomains, _node, _recordhash); // Set recordhash for 'hello.world.domain.eth'
         _encoded;
+    }
+
+    /// @dev Test setting ownerhash
+    function test8_setOwnerhash() public {
+        uint256 OwnerKey = 0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd;
+        address _owner = vm.addr(OwnerKey);
+        bytes memory _recordhash =
+            hex"e501017200240801122008dd085b86d16226791544f4628c4efc0936c69221fef17dfac843d9713233bb";
+        vm.prank(_owner);
+        ccip2eth.setOwnerhash(_recordhash); // Set recordhash for entire wallet
     }
 }
 

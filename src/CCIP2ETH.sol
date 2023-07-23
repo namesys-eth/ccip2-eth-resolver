@@ -5,7 +5,7 @@ import "./Interface.sol";
 
 /**
  * @title Off-Chain ENS Records Manager
- * @author freetib.eth, sshmatrix.eth
+ * @author freetib.eth, sshmatrix.eth [https://github.com/namesys-eth]
  * Github : https://github.com/namesys-eth/ccip2-eth-resolver
  * Client : https://namesys.eth.limo
  */
@@ -24,6 +24,7 @@ contract CCIP2ETH is iCCIP2ETH {
     event ThankYou(address indexed addr, uint256 indexed value);
     event UpdatedGatewayManager(address indexed oldAddr, address indexed newAddr);
     event RecordhashChanged(address indexed owner, bytes32 indexed node, bytes contenthash);
+    event OwnerhashChanged(address indexed owner, bytes contenthash);
     event UpdatedWrapper(address indexed newAddr, bool indexed status);
     event ApprovedSigner(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
     event UpdatedSupportedInterface(bytes4 indexed sig, bool indexed status);
@@ -69,16 +70,6 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /**
-     * @dev Checks if a manager is authorised by the owner of ENS domain
-     * @param _node - Namehash of ENS domain
-     * @param _owner - Owner of ENS domain
-     * @param _manager - Manager address to check
-     */
-    function isAuthorized(bytes32 _node, address _owner, address _manager) public view returns (bool) {
-        return (isApprovedSigner[_owner][_node][_manager] || ENS.isApprovedForAll(_owner, _manager));
-    }
-
-    /**
      * @dev Set new Gateway Manager Contract
      * @param _gateway - Address of new Gateway Manager Contract
      */
@@ -90,36 +81,52 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /**
-     * @dev Sets recordhash for a (sub)node or ownerhash for an owner
+     * @dev Sets recordhash for a node
      * Note - Only ENS owner or manager of node can call
-     * @param _subdomain - Subdomain labels; a.b.c.domain.eth = [a, b, c]
-     * Note - Provide '[]' value for setting recordhash for domain.eth
      * @param _node - Namehash of domain.eth
-     * Note - Provide 'bytes32(0)' for setting ownerhash
-     * @param _contenthash - Contenthash to set as recordhash or ownerhash
+     * @param _contenthash - Contenthash to set as recordhash
      */
-    function setRecordhash(string[] calldata _subdomain, bytes32 _node, bytes calldata _contenthash) external {
-        bytes32 _namehash = _node;
-        if (_node == bytes32(0)) {
-            // Set ownerhash if no node is provided
-            ownerhash[keccak256(abi.encodePacked(msg.sender))] = _contenthash;
-        } else {
-            // Set recordhash otherwise
-            address _owner = ENS.owner(_node);
-            if (isWrapper[_owner]) {
-                _owner = iToken(_owner).ownerOf(uint256(_node));
-            }
-            require(msg.sender == _owner || isApprovedSigner[_owner][_node][msg.sender], "NOT_AUTHORIZED");
-            // Update sub(domain) namehash if subdomain labels are provided
-            uint256 len = _subdomain.length;
-            unchecked {
-                while (len > 0) {
-                    _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_subdomain[--len]))));
-                }
-            }
-            // Set recordhash for the (sub)node
-            recordhash[_namehash] = _contenthash;
+    function setRecordhash(bytes32 _node, bytes calldata _contenthash) external {
+        address _owner = ENS.owner(_node);
+        if (isWrapper[_owner]) {
+            _owner = iToken(_owner).ownerOf(uint256(_node));
         }
+        require(msg.sender == _owner || isApprovedSigner[_owner][_node][msg.sender], "NOT_AUTHORIZED");
+        recordhash[_node] = _contenthash;
+        emit RecordhashChanged(msg.sender, _node, _contenthash);
+    }
+
+    /**
+     * @dev Sets ownerhash for an owner
+     * Note - Wallet-specific fallback recordhash
+     * @param _contenthash - Contenthash to set as ownerhash
+     */
+    function setOwnerhash(bytes calldata _contenthash) external {
+        ownerhash[keccak256(abi.encodePacked(msg.sender))] = _contenthash;
+        emit OwnerhashChanged(msg.sender, _contenthash);
+    }
+
+    /**
+     * @dev Sets recordhash for a subnode
+     * Note - Only ENS owner or manager of parent node can call
+     * @param _subdomain - Subdomain labels; a.b.c.domain.eth = [a, b, c]
+     * @param _node - Namehash of domain.eth
+     * @param _contenthash - Contenthash to set as recordhash
+     */
+    function setSubRecordhash(string[] calldata _subdomain, bytes32 _node, bytes calldata _contenthash) external {
+        bytes32 _namehash = _node;
+        address _owner = ENS.owner(_node);
+        if (isWrapper[_owner]) {
+            _owner = iToken(_owner).ownerOf(uint256(_node));
+        }
+        require(msg.sender == _owner || isApprovedSigner[_owner][_node][msg.sender], "NOT_AUTHORIZED");
+        uint256 len = _subdomain.length;
+        unchecked {
+            while (len > 0) {
+                _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_subdomain[--len]))));
+            }
+        }
+        recordhash[_namehash] = _contenthash;
         emit RecordhashChanged(msg.sender, _namehash, _contenthash);
     }
 
@@ -196,7 +203,7 @@ contract CCIP2ETH is iCCIP2ETH {
      * @return _redirectRequest - Redirected request
      * @return domain - String-formatted ENS domain
      */
-    function redirectApplicationService(bytes calldata _encoded, bytes calldata _requested)
+    function redirectService(bytes calldata _encoded, bytes calldata _requested)
         external
         view
         returns (bytes4 _selector, bytes32 _namehash, bytes memory _redirectRequest, string memory domain)
@@ -244,12 +251,14 @@ contract CCIP2ETH is iCCIP2ETH {
     ) public view returns (bool) {
         address _Signer = iCCIP2ETH(this).getSigner(
             string.concat(
-                "Requesting Signature To Approve Records Signer\n",
-                "\nDomain: ",
+                "Requesting Signature To Approve ENS Records Signer\n",
+                "\nENS Domain: ",
                 _domain,
                 "\nApproved Signer: eip155:1:",
                 gateway.toChecksumAddress(_approvedSigner),
-                "\nOwner: eip155:1:",
+                "\nExtradata: 0x",
+                gateway.bytes32ToHexString(keccak256(abi.encodePacked(_owner, _approvedSigner))),
+                "\nSigned By: eip155:1:",
                 gateway.toChecksumAddress(_owner)
             ),
             _signature
@@ -313,14 +322,14 @@ contract CCIP2ETH is iCCIP2ETH {
         if (_type == iCallbackType.signedRecord.selector) {
             /// @dev If 'signedRecord()' bytes4 selector; handles signed records
             signRequest = string.concat(
-                "Requesting Signature To Update Record\n",
-                "\nDomain: ",
+                "Requesting Signature To Update ENS Record\n",
+                "\nENS Domain: ",
                 _domain,
-                "\nType: ",
+                "\nRecord Type: ",
                 _recType,
                 "\nExtradata: 0x",
                 gateway.bytesToHexString(abi.encodePacked(keccak256(result)), 0),
-                "\nSigner: eip155:1:",
+                "\nSigned By: eip155:1:",
                 gateway.toChecksumAddress(_signer)
             );
             require(_signer == iCCIP2ETH(this).getSigner(signRequest, _recordSignature), "BAD_SIGNED_RECORD");
@@ -328,10 +337,10 @@ contract CCIP2ETH is iCCIP2ETH {
             /// @dev If 'signedRedirect()' bytes4 selector; handles redirected records
             if (result[0] == 0x0) {
                 signRequest = string.concat(
-                    "Requesting Signature To Redirect Records\n",
+                    "Requesting Signature To Redirect ENS Records\n",
                     "\nENS Domain: ",
-                    _domain, // <dapp>.domain.eth
-                    "\nExtradata: ",
+                    _domain, // <app>.domain.eth
+                    "\nExtradata: 0x",
                     gateway.bytesToHexString(abi.encodePacked(keccak256(result)), 0),
                     "\nSigned By: eip155:1:",
                     gateway.toChecksumAddress(_signer)
@@ -355,14 +364,16 @@ contract CCIP2ETH is iCCIP2ETH {
             // Note Last byte is 0x00, meaning end of DNS-encoded stream
             require(result[result.length - 1] == 0x0, "BAD_ENS_ENCODED");
             (bytes4 _sig, bytes32 _redirectNamehash, bytes memory _redirectRequest, string memory _redirectDomain) =
-                CCIP2ETH(this).redirectApplicationService(result, _request);
+                CCIP2ETH(this).redirectService(result, _request);
             signRequest = string.concat(
                 "Requesting Signature To Install dApp Service\n",
-                "\nDomain: ",
+                "\nENS Domain: ",
                 _domain, // e.g. ens.domain.eth
                 "\ndApp: ",
                 _redirectDomain, // e.g. app.ens.eth
-                "\nSigner: eip155:1:",
+                "\nExtradata: 0x",
+                gateway.bytesToHexString(abi.encodePacked(keccak256(result)), 0),
+                "\nSigned By: eip155:1:",
                 gateway.toChecksumAddress(_signer)
             );
             require(_signer == iCCIP2ETH(this).getSigner(signRequest, _recordSignature), "BAD_DAPP_SIGNATURE");
