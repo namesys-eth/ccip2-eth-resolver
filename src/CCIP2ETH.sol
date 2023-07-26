@@ -165,6 +165,12 @@ contract CCIP2ETH is iCCIP2ETH {
                 }
             }
             address _owner = ENS.owner(_node);
+            {/* Fix for Ownership-Wrapper compatibility @Bug
+            // Update ownership if domain is wrapped
+            if (isWrapper[_owner]) {
+                _owner = iToken(_owner).ownerOf(uint256(_node));
+            }
+            */}
             if (_recordhash.length == 0) {
                 // Check if recordhash exists
                 bytes32 _addrhash = keccak256(abi.encodePacked(_owner));
