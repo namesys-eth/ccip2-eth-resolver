@@ -57,9 +57,14 @@ contract CCIP2ETH is iCCIP2ETH {
     constructor(address _gateway) {
         gateway = iGatewayManager(_gateway);
 
-        /// @dev - Sets ENS Mainnet wrapper as Wrapper
+        /// @dev - Sets ENS Mainnet wrapper contract
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
         emit UpdatedWrapper(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401, true);
+
+
+        /// @dev - Sets ENS TESTNET wrapper contract
+        isWrapper[0x0000000000000000000000000000000000000000] = true;
+        emit UpdatedWrapper(0x0000000000000000000000000000000000000000, true);
 
         /// @dev - Set necessary interfaces
         supportsInterface[iERC165.supportsInterface.selector] = true;
@@ -89,11 +94,12 @@ contract CCIP2ETH is iCCIP2ETH {
     function setOwnerhash(bytes calldata _recordhash) external payable {
         require(msg.value >= ownerhashFees, "PLS_FUNDU_DEVS");
         recordhash[keccak256(abi.encodePacked(msg.sender))] = _recordhash;
-        emit RecordhashChanged(msg.sender, bytes32(type(uint).max), _recordhash);
+        emit RecordhashChanged(msg.sender, bytes32(type(uint256).max), _recordhash);
     }
-    
-    uint ownerhashFees = 0.001 ether;
-    function updateOwnerhashFees(uint _fees) external OnlyDev {
+
+    uint256 ownerhashFees = 0.001 ether;
+
+    function updateOwnerhashFees(uint256 _fees) external OnlyDev {
         ownerhashFees = _fees;
     }
 
@@ -129,7 +135,7 @@ contract CCIP2ETH is iCCIP2ETH {
                 if (ENS.recordExists(_namehash)) {
                     _node = _namehash;
                     _recordhash = recordhash[_namehash];
-                } else if(bytes(recordhash[_namehash]).length > 0){
+                } else if (bytes(recordhash[_namehash]).length > 0) {
                     _recordhash = recordhash[_namehash];
                 }
             }
@@ -287,7 +293,7 @@ contract CCIP2ETH is iCCIP2ETH {
             );
             require(_signer == iCCIP2ETH(this).getSigner(signRequest, _recordSignature), "BAD_SIGNED_RECORD");
         } else if (_type == iCallbackType.signedRedirect.selector) {
-            if(result[0] == 0x0){
+            if (result[0] == 0x0) {
                 return gateway.__fallback(response, extradata);
             }
             require(result[result.length - 1] == 0x0, "BAD_ENS_ENCODED");
@@ -353,9 +359,7 @@ contract CCIP2ETH is iCCIP2ETH {
             revert InvalidSignature("INVALID_S_VALUE");
         }
         bytes32 digest = keccak256(
-            abi.encodePacked(
-                "\x19Ethereum Signed Message:\n", gateway.uintToString(bytes(_message).length), _message
-            )
+            abi.encodePacked("\x19Ethereum Signed Message:\n", gateway.uintToString(bytes(_message).length), _message)
         );
         _signer = ecrecover(digest, v, r, s);
         require(_signer != address(0), "ZERO_ADDR");
@@ -401,10 +405,9 @@ contract CCIP2ETH is iCCIP2ETH {
         return _owner == _signer || isApprovedSigner[_owner][_node][_signer];
     }
 
-
     /// @dev : management functions
 
-    modifier OnlyDev(){
+    modifier OnlyDev() {
         require(msg.sender == gateway.owner(), "ONLY_DEV");
         _;
     }

@@ -64,7 +64,7 @@ contract CCIP2ETHTest is Test {
         //ENS.setResolver(_namehash, address(ccip2eth));
         ccip2eth.setRecordhash(_namehash, _recordhash);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
-        bytes memory _request = abi.encodePacked(iResolver.addr.selector, _namehash);
+        bytes memory _request = abi.encodeWithSelector(iResolver.addr.selector, _namehash);
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
             abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), _addr, _domain, _path, _request, _recType)
@@ -98,7 +98,7 @@ contract CCIP2ETHTest is Test {
             hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
         ccip2eth.setRecordhash(_namehash, _recordhash);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
-        bytes memory _request = abi.encodePacked(iResolver.text.selector, _namehash, abi.encode(string("avatar")));
+        bytes memory _request = abi.encodeWithSelector(iResolver.text.selector, _namehash, abi.encode(string("avatar")));
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
             abi.encodePacked(
@@ -144,7 +144,8 @@ contract CCIP2ETHTest is Test {
         bytes32 _namehash; // Full namehash
         (_namehash, _encoded) = utils.Encode(_name);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
-        bytes memory _request = abi.encodePacked(iResolver.text.selector, _namehash, abi.encode(string("showcase")));
+        bytes memory _request =
+            abi.encodeWithSelector(iResolver.text.selector, _namehash, abi.encode(string("showcase")));
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
             abi.encodePacked(
@@ -184,7 +185,7 @@ contract CCIP2ETHTest is Test {
         ccip2eth.setRecordhash(_node, _recordhash);
 
         (string memory _path, string memory _domain) = utils.Format(_encoded);
-        bytes memory _request = abi.encodePacked(iResolver.addr.selector, _node);
+        bytes memory _request = abi.encodeWithSelector(iResolver.addr.selector, _node);
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
             abi.encodePacked(
@@ -249,7 +250,7 @@ contract CCIP2ETHTest is Test {
         ccip2eth.setRecordhash(_node, _recordhash);
 
         (string memory _path, string memory _domain) = utils.Format(_encoded);
-        bytes memory _request = abi.encodePacked(iResolver.addr.selector, _node);
+        bytes memory _request = abi.encodeWithSelector(iResolver.addr.selector, _node);
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
             abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), _owner, _domain, _path, _request, _recType)
@@ -327,7 +328,7 @@ contract CCIP2ETHTest is Test {
         ccip2eth.setRecordhash(_node, _recordhash); // Set recordhash
 
         (string memory _path, string memory _domain) = utils.Format(_encoded);
-        bytes memory _request = abi.encodePacked(iResolver.addr.selector, _node);
+        bytes memory _request = abi.encodeWithSelector(iResolver.addr.selector, _node);
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
             abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), _owner, _domain, _path, _request, _recType)

@@ -126,7 +126,8 @@ contract GatewayManager is iERC173, iGatewayManager {
         if (bytes(funcMap[func]).length > 0) {
             _jsonPath = funcMap[func];
         } else if (func == iResolver.text.selector) {
-            _jsonPath = string.concat("text/", abi.decode(data[36:], (string)));
+            ( , string memory _key) = abi.decode(data[4:], (bytes32, string));
+            _jsonPath = string.concat("text/", _key);
         } else if (func == iOverloadResolver.addr.selector) {
             _jsonPath = string.concat("address/", uintToString(abi.decode(data[36:], (uint256))));
         } else if (func == iResolver.interfaceImplementer.selector) {
@@ -135,13 +136,11 @@ contract GatewayManager is iERC173, iGatewayManager {
         } else if (func == iResolver.ABI.selector) {
             _jsonPath = string.concat("abi/", uintToString(abi.decode(data[36:], (uint256))));
         } else if (func == iResolver.dnsRecord.selector || func == iOverloadResolver.dnsRecord.selector) {
-            // e.g, `.well-known/eth/domain/dns/<resource>.json`
             uint256 resource;
             if (data.length == 100) {
-                // 4+32+32+32
-                (, resource) = abi.decode(data[36:], (bytes32, uint256)); // actual uint16
+                (resource) = abi.decode(data[68:], (uint256));
             } else {
-                (, resource) = abi.decode(data[36:], (bytes, uint256));
+                ( , , resource) = abi.decode(data[4:], (bytes32, bytes, uint256));
             }
             _jsonPath = string.concat("dns/", uintToString(resource));
         } else {
