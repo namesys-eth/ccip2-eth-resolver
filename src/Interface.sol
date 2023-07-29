@@ -37,7 +37,7 @@ interface iCCIP2ETH is iENSIP10 {
         view
         returns (address _signer);
     function setRecordhash(bytes32 _node, bytes calldata _recordhash) external;
-    function setOwnerhash(bytes calldata _recordhash) external payable;
+    function setOwnerhash(bytes calldata _recordhash) external;
     function redirectService(bytes calldata _encoded, bytes calldata _requested)
         external
         view
@@ -65,8 +65,6 @@ interface iGatewayManager is iERC173 {
     function removeGateway(uint256 _index) external;
     function replaceGateway(uint256 _index, string calldata _domain) external;
 }
-
-interface iUtils {}
 
 interface iResolver {
     function contenthash(bytes32 node) external view returns (bytes memory);

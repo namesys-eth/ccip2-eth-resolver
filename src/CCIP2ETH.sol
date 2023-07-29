@@ -23,7 +23,7 @@ contract CCIP2ETH is iCCIP2ETH {
     /// Events
     event ThankYou(address indexed addr, uint256 indexed value);
     event GatewayUpdated(address indexed oldAddr, address indexed newAddr);
-    event RecordhashChanged(address indexed owner, bytes32 indexed node, bytes contenthash);
+    event RecordhashUpdated(address indexed owner, bytes32 indexed node, bytes contenthash);
     event OwnerhashChanged(address indexed owner, bytes contenthash);
     event UpdatedWrapper(address indexed newAddr, bool indexed status);
     event ApprovedSigner(address owner, bytes32 indexed node, address indexed delegate, bool indexed approved);
@@ -62,7 +62,6 @@ contract CCIP2ETH is iCCIP2ETH {
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
         emit UpdatedWrapper(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401, true);
 
-
         /// @dev - Sets ENS TESTNET wrapper contract
         isWrapper[0x0000000000000000000000000000000000000000] = true;
         emit UpdatedWrapper(0x0000000000000000000000000000000000000000, true);
@@ -74,13 +73,18 @@ contract CCIP2ETH is iCCIP2ETH {
         supportsInterface[iCCIP2ETH.setRecordhash.selector] = true;
     }
 
+    function updateGatewayManager(address _gateway) external {
+        require(msg.sender == gateway.owner(), "ONLY_DEV");
+        require(msg.sender == iGatewayManager(_gateway).owner(), "BAD_GATEWAY");
+        emit GatewayUpdated(address(gateway), _gateway);
+        gateway = iGatewayManager(_gateway);
+    }
+
     /**
-     * @dev Sets recordhash for a (sub)node or ownerhash for an owner
+     * @dev Sets recordhash for a node
      * Note - Only ENS owner or manager of node can call
-     * Note - Provide '[]' value for setting recordhash for domain.eth
      * @param _node - Namehash of domain.eth
-     * Note - Provide 'bytes32(0)' for setting ownerhash
-     * @param _recordhash - Contenthash to set as recordhash or ownerhash
+     * @param _recordhash - Contenthash to set as recordhash
      */
     function setRecordhash(bytes32 _node, bytes calldata _recordhash) external {
         address _owner = ENS.owner(_node);
@@ -89,54 +93,18 @@ contract CCIP2ETH is iCCIP2ETH {
         }
         require(msg.sender == _owner || isApprovedSigner[_owner][_node][msg.sender], "NOT_AUTHORIZED");
         recordhash[_node] = _recordhash;
-        emit RecordhashChanged(msg.sender, _node, _recordhash);
-    }
-
-    function setOwnerhash(bytes calldata _recordhash) external payable {
-        require(msg.value >= ownerhashFees, "PLS_FUNDU_DEVS");
-        recordhash[keccak256(abi.encodePacked(msg.sender))] = _recordhash;
-        emit RecordhashChanged(msg.sender, bytes32(type(uint256).max), _recordhash);
-    }
-
-    uint256 ownerhashFees = 0.001 ether;
-
-    function updateOwnerhashFees(uint256 _fees) external OnlyDev {
-        ownerhashFees = _fees;
-=======
-     * @dev Set new Gateway Manager Contract
-     * @param _gateway - Address of new Gateway Manager Contract
-     */
-    function updateGatewayManager(address _gateway) external {
-        require(msg.sender == gateway.owner(), "ONLY_DEV");
-        require(msg.sender == iGatewayManager(_gateway).owner(), "BAD_GATEWAY");
-        emit UpdatedGatewayManager(address(gateway), _gateway);
-        gateway = iGatewayManager(_gateway);
-    }
-
-    /**
-     * @dev Sets recordhash for a node
-     * Note - Only ENS owner or manager of node can call
-     * @param _node - Namehash of domain.eth
-     * @param _contenthash - Contenthash to set as recordhash
-     */
-    function setRecordhash(bytes32 _node, bytes calldata _contenthash) external {
-        address _owner = ENS.owner(_node);
-        if (isWrapper[_owner]) {
-            _owner = iToken(_owner).ownerOf(uint256(_node));
-        }
-        require(msg.sender == _owner || isApprovedSigner[_owner][_node][msg.sender], "NOT_AUTHORIZED");
-        recordhash[_node] = _contenthash;
-        emit RecordhashChanged(msg.sender, _node, _contenthash);
+        emit RecordhashUpdated(msg.sender, _node, _recordhash);
     }
 
     /**
      * @dev Sets ownerhash for an owner
      * Note - Wallet-specific fallback recordhash
-     * @param _contenthash - Contenthash to set as ownerhash
+     * @param _recordhash - Contenthash to set as ownerhash
      */
-    function setOwnerhash(bytes calldata _contenthash) external {
-        ownerhash[keccak256(abi.encodePacked(msg.sender))] = _contenthash;
-        emit OwnerhashChanged(msg.sender, _contenthash);
+    function setOwnerhash(bytes calldata _recordhash) external {
+        bytes32 _hash = keccak256(abi.encodePacked(msg.sender));
+        ownerhash[_hash] = _recordhash;
+        emit RecordhashUpdated(msg.sender, bytes32(type(uint256).max), _recordhash);
     }
 
     /**
@@ -144,9 +112,9 @@ contract CCIP2ETH is iCCIP2ETH {
      * Note - Only ENS owner or manager of parent node can call
      * @param _subdomain - Subdomain labels; a.b.c.domain.eth = [a, b, c]
      * @param _node - Namehash of domain.eth
-     * @param _contenthash - Contenthash to set as recordhash
+     * @param _recordhash - Contenthash to set as recordhash
      */
-    function setSubRecordhash(string[] calldata _subdomain, bytes32 _node, bytes calldata _contenthash) external {
+    function setSubRecordhash(string[] calldata _subdomain, bytes32 _node, bytes calldata _recordhash) external {
         bytes32 _namehash = _node;
         address _owner = ENS.owner(_node);
         if (isWrapper[_owner]) {
@@ -159,8 +127,8 @@ contract CCIP2ETH is iCCIP2ETH {
                 _namehash = keccak256(abi.encodePacked(_namehash, keccak256(bytes(_subdomain[--len]))));
             }
         }
-        recordhash[_namehash] = _contenthash;
-        emit RecordhashChanged(msg.sender, _namehash, _contenthash);
+        recordhash[_namehash] = _recordhash;
+        emit RecordhashUpdated(msg.sender, _namehash, _recordhash);
     }
 
     /**

@@ -126,7 +126,7 @@ contract GatewayManager is iERC173, iGatewayManager {
         if (bytes(funcMap[func]).length > 0) {
             _jsonPath = funcMap[func];
         } else if (func == iResolver.text.selector) {
-            ( , string memory _key) = abi.decode(data[4:], (bytes32, string));
+            (, string memory _key) = abi.decode(data[4:], (bytes32, string));
             _jsonPath = string.concat("text/", _key);
         } else if (func == iOverloadResolver.addr.selector) {
             _jsonPath = string.concat("address/", uintToString(abi.decode(data[36:], (uint256))));
@@ -140,7 +140,7 @@ contract GatewayManager is iERC173, iGatewayManager {
             if (data.length == 100) {
                 (resource) = abi.decode(data[68:], (uint256));
             } else {
-                ( , , resource) = abi.decode(data[4:], (bytes32, bytes, uint256));
+                (,, resource) = abi.decode(data[4:], (bytes32, bytes, uint256));
             }
             _jsonPath = string.concat("dns/", uintToString(resource));
         } else {
