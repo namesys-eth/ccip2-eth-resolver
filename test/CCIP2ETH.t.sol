@@ -82,6 +82,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         ccip2eth.resolve(_encoded, _request);
+        _subdomains;
     }
 
     /// @dev Test subdomain-level CCIP-Read call
@@ -118,6 +119,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         ccip2eth.resolve(_encoded, _request);
+        _subdomains;
     }
 
     /// @dev Test deep CCIP-Read call
@@ -165,6 +167,7 @@ contract CCIP2ETHTest is Test {
             )
         );
         ccip2eth.resolve(_encoded, _request);
+        _subdomains;
     }
 
     /// @dev CCIP end-to-end test with on-chain signer
@@ -211,7 +214,7 @@ contract CCIP2ETHTest is Test {
             "Requesting Signature To Update ENS Record\n",
             "\nOrigin: ",
             _domain,
-            "\nType: address/60",
+            "\nRecord Type: address/60",
             "\nExtradata: 0x",
             gateway.bytesToHexString(abi.encodePacked(keccak256(_result)), 0),
             "\nSigned By: eip155:1:",
@@ -229,6 +232,7 @@ contract CCIP2ETHTest is Test {
         bytes memory _response =
             abi.encodeWithSelector(iCallbackType.signedRecord.selector, _signer, _signature, bytes("0"), _result);
         assertEq(_result, ccip2eth.__callback(_response, _extraData));
+        _subdomains;
     }
 
     /// @dev CCIP end-to-end test with off-chain signer (with fake parameters)
@@ -274,7 +278,7 @@ contract CCIP2ETHTest is Test {
             "Requesting Signature To Update ENS Record\n",
             "\nOrigin: ",
             _domain,
-            "\nType: address/60",
+            "\nRecord Type: address/60",
             "\nExtradata: 0x",
             gateway.bytesToHexString(abi.encodePacked(keccak256(_result)), 0),
             "\nSigned By: eip155:1:",
@@ -307,6 +311,7 @@ contract CCIP2ETHTest is Test {
         bytes memory _response =
             abi.encodeWithSelector(iCallbackType.signedRecord.selector, _signer, _recordSig, _approvedSig, _result);
         assertEq(_result, ccip2eth.__callback(_response, _extraData));
+        _subdomains;
     }
 
     /// @dev CCIP end-to-end with off-chain signer and real parameters
@@ -352,7 +357,7 @@ contract CCIP2ETHTest is Test {
             "Requesting Signature To Update ENS Record\n",
             "\nOrigin: ",
             _domain,
-            "\nType: address/60",
+            "\nRecord Type: address/60",
             "\nExtradata: 0x",
             gateway.bytesToHexString(abi.encodePacked(keccak256(_result)), 0),
             "\nSigned By: eip155:1:",
@@ -386,6 +391,7 @@ contract CCIP2ETHTest is Test {
         bytes memory _response =
             abi.encodeWithSelector(iCallbackType.signedRecord.selector, _signer, _recordSig, _approvedSig, _result);
         assertEq(_result, ccip2eth.__callback(_response, _extraData));
+        _subdomains;
     }
 
     /// @dev Test setting deep recordhash
