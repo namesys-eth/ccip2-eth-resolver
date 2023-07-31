@@ -90,18 +90,18 @@ interface iToken {
 }
 
 // Note - Owner = Owner of domain.eth
-// Note - Manager = On-/Off-chain address approved by Owner
+// Note - Manager = On-/Off-Chain address approved by Owner
 // Note - Signer = Record signer
 interface iCallbackType {
     function signedRecord(
-        address recordSigner, // Owner OR On-chain Manager OR Off-chain Manager
+        address recordSigner, // Owner OR On-Chain Manager OR Off-Chain Manager
         bytes memory recordSignature, // Signature from signer for result value
         bytes memory approvedSignature, // bytes1(..) IF signer is owner or on-chain manager
         bytes memory result // ABI-encoded result
     ) external view returns (bytes memory);
 
     function signedRedirect(
-        address recordSigner, // Owner OR On-chain Manager OR Off-chain Manager
+        address recordSigner, // Owner OR On-Chain Manager OR Off-Chain Manager
         bytes memory recordSignature, // Signature from signer for redirect value
         bytes memory approvedSignature, // bytes1(..) IF signer is owner or on-chain manager
         bytes memory redirect // ABI-encoded recordhash OR DNS-encoded domain.eth to redirect

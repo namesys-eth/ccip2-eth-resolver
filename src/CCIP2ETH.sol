@@ -36,6 +36,8 @@ contract CCIP2ETH is iCCIP2ETH {
     iENS public immutable ENS = iENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
     /// @dev - CCIP-Read Gateways
     iGatewayManager public gateway;
+    /// @dev - Deployed Chain ID
+    string chainID;
 
     /// Mappings
     /**
@@ -55,9 +57,9 @@ contract CCIP2ETH is iCCIP2ETH {
     mapping(bytes4 => bool) public supportsInterface;
 
     /// @dev - Constructor
-    constructor(address _gateway) {
+    constructor(address _gateway, string memory _chainID) {
         gateway = iGatewayManager(_gateway);
-
+        chainID = _chainID;
         /// @dev - Sets ENS Mainnet wrapper as Wrapper
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
         emit UpdatedWrapper(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401, true);
@@ -156,6 +158,7 @@ contract CCIP2ETH is iCCIP2ETH {
             bytes32 _namehash = keccak256(abi.encodePacked(bytes32(0), keccak256(_labels[--index])));
             bytes32 _node;
             bytes memory _recordhash;
+            // Calculate 'closest-set' parent node
             while (index > 0) {
                 _namehash = keccak256(abi.encodePacked(_namehash, keccak256(_labels[--index])));
                 // Check if sub(domain) exists on-chain or off-chain
@@ -164,13 +167,11 @@ contract CCIP2ETH is iCCIP2ETH {
                     _recordhash = recordhash[_namehash];
                 }
             }
-            address _owner = ENS.owner(_node);
-            {/* Fix for Ownership-Wrapper compatibility @Bug
+            address _owner = ENS.owner(_node);         
             // Update ownership if domain is wrapped
             if (isWrapper[_owner]) {
                 _owner = iToken(_owner).ownerOf(uint256(_node));
             }
-            */}
             if (_recordhash.length == 0) {
                 // Check if recordhash exists
                 bytes32 _addrhash = keccak256(abi.encodePacked(_owner));
@@ -181,10 +182,6 @@ contract CCIP2ETH is iCCIP2ETH {
                 _recordhash = ownerhash[_addrhash]; // Fallback to ownerhash in absence of recordhash
             }
             string memory _recType = gateway.funcToJson(request); // Filename for the requested record
-            // Update ownership if domain is wrapped
-            if (isWrapper[_owner]) {
-                _owner = iToken(_owner).ownerOf(uint256(_node));
-            }
             bytes32 _checkHash = keccak256(
                 abi.encodePacked(this, blockhash(block.number - 1), _owner, _domain, _path, request, _recType)
             );
@@ -260,11 +257,15 @@ contract CCIP2ETH is iCCIP2ETH {
                 "Requesting Signature To Approve ENS Records Signer\n",
                 "\nENS Domain: ",
                 _domain,
-                "\nApproved Signer: eip155:1:",
+                "\nApproved Signer: eip155:",
+                chainID,
+                ":",
                 gateway.toChecksumAddress(_approvedSigner),
                 "\nExtradata: 0x",
                 gateway.bytes32ToHexString(keccak256(abi.encodePacked(_owner, _approvedSigner))),
-                "\nSigned By: eip155:1:",
+                "\nSigned By: eip155:",
+                chainID,
+                ":",
                 gateway.toChecksumAddress(_owner)
             ),
             _signature
@@ -335,7 +336,9 @@ contract CCIP2ETH is iCCIP2ETH {
                 _recType,
                 "\nExtradata: 0x",
                 gateway.bytesToHexString(abi.encodePacked(keccak256(result)), 0),
-                "\nSigned By: eip155:1:",
+                "\nSigned By: eip155:",
+                chainID,
+                ":",
                 gateway.toChecksumAddress(_signer)
             );
             require(_signer == iCCIP2ETH(this).getSigner(signRequest, _recordSignature), "BAD_SIGNED_RECORD");
@@ -348,7 +351,9 @@ contract CCIP2ETH is iCCIP2ETH {
                     _domain, // <app>.domain.eth
                     "\nExtradata: 0x",
                     gateway.bytesToHexString(abi.encodePacked(keccak256(result)), 0),
-                    "\nSigned By: eip155:1:",
+                    "\nSigned By: eip155:",
+                    chainID,
+                    ":",
                     gateway.toChecksumAddress(_signer)
                 );
                 require(_signer == iCCIP2ETH(this).getSigner(signRequest, _recordSignature), "BAD_DAPP_SIGNATURE");
@@ -379,7 +384,9 @@ contract CCIP2ETH is iCCIP2ETH {
                 _redirectDomain, // e.g. app.ens.eth
                 "\nExtradata: 0x",
                 gateway.bytesToHexString(abi.encodePacked(keccak256(result)), 0),
-                "\nSigned By: eip155:1:",
+                "\nSigned By: eip155:",
+                chainID,
+                ":",
                 gateway.toChecksumAddress(_signer)
             );
             require(_signer == iCCIP2ETH(this).getSigner(signRequest, _recordSignature), "BAD_DAPP_SIGNATURE");
