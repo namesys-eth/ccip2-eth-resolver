@@ -126,11 +126,8 @@ contract GatewayManager is iERC173, iGatewayManager {
         if (bytes(funcMap[func]).length > 0) {
             _jsonPath = funcMap[func];
         } else if (func == iResolver.text.selector) {
-            _jsonPath = string.concat("text/", abi.decode(data[36:], (string)));
-            /* Fix for Text Records @Bug
-            (, string _str) = abi.decode(data[4:], (bytes32, string));
-            _jsonPath = string.concat("text/", _str);
-            */ 
+            (, string memory _key) = abi.decode(data[4:], (bytes32, string));
+            _jsonPath = string.concat("text/", _key);
         } else if (func == iOverloadResolver.addr.selector) {
             _jsonPath = string.concat("address/", uintToString(abi.decode(data[36:], (uint256))));
         } else if (func == iResolver.interfaceImplementer.selector) {
@@ -143,9 +140,9 @@ contract GatewayManager is iERC173, iGatewayManager {
             uint256 resource;
             if (data.length == 100) {
                 // 4 + 32 + 32 + 32 = 100
-                (, resource) = abi.decode(data[36:], (bytes32, uint256)); // Expect uint16
+                (resource) = abi.decode(data[68:], (uint256)); // Expect uint16
             } else {
-                (, resource) = abi.decode(data[36:], (bytes, uint256));
+                (,, resource) = abi.decode(data[4:], (bytes32, bytes, uint256));
             }
             _jsonPath = string.concat("dns/", uintToString(resource));
         } else {
