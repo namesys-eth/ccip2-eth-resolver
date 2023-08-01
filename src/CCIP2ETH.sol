@@ -167,15 +167,11 @@ contract CCIP2ETH is iCCIP2ETH {
                     _recordhash = recordhash[_namehash];
                 }
             }
-            address _owner = ENS.owner(_node);
-            /**
-             * @Bug
-             * Fix for Ownership-Wrapper compatibility bug
-             *         // Update ownership if domain is wrapped
-             *         if (isWrapper[_owner]) {
-             *             _owner = iToken(_owner).ownerOf(uint256(_node));
-             *         }
-             */
+            address _owner = ENS.owner(_node);         
+            // Update ownership if domain is wrapped
+            if (isWrapper[_owner]) {
+                _owner = iToken(_owner).ownerOf(uint256(_node));
+            }
             if (_recordhash.length == 0) {
                 // Check if recordhash exists
                 bytes32 _addrhash = keccak256(abi.encodePacked(_owner));
@@ -186,10 +182,6 @@ contract CCIP2ETH is iCCIP2ETH {
                 _recordhash = ownerhash[_addrhash]; // Fallback to ownerhash in absence of recordhash
             }
             string memory _recType = gateway.funcToJson(request); // Filename for the requested record
-            // Update ownership if domain is wrapped
-            if (isWrapper[_owner]) {
-                _owner = iToken(_owner).ownerOf(uint256(_node));
-            }
             bytes32 _checkHash = keccak256(
                 abi.encodePacked(this, blockhash(block.number - 1), _owner, _domain, _path, request, _recType)
             );
