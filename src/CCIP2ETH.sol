@@ -44,8 +44,6 @@ contract CCIP2ETH is iCCIP2ETH {
      * @notice - Should be in generic ENS contenthash format or base32/base36 string URL format
      */
     mapping(bytes32 => bytes) public recordhash;
-    /// @dev - Owner-specific contenthash storing records for all names owned by a wallet
-    mapping(bytes32 => bytes) public ownerhash;
     /// @dev - On-chain singular Manager database
     /// Note - Manager (= isApprovedSigner) is someone who can manage off-chain records for a domain on behalf of its owner
     mapping(address => mapping(bytes32 => mapping(address => bool))) public isApprovedSigner;
@@ -103,15 +101,16 @@ contract CCIP2ETH is iCCIP2ETH {
      * @param _recordhash - Contenthash to set as ownerhash
      */
     function setOwnerhash(bytes calldata _recordhash) external payable {
-        ownerhash[keccak256(abi.encodePacked(msg.sender))] = _recordhash;
+        require(msg.value >= ownerhashFees, "PLS_FUND_DEVS");
+        recordhash[keccak256(abi.encodePacked(msg.sender))] = _recordhash;
         emit RecordhashUpdated(msg.sender, bytes32(type(uint256).max), _recordhash);
     }
 
     /**
-     * @dev Sets recordhash for a subnode
+     * @dev Sets Deep recordhash for a sub/subnode
      * Note - Only ENS owner or manager of parent node can call
-     * @param _subdomain - Subdomain labels; a.b.c.domain.eth = [a, b, c]
      * @param _node - Namehash of domain.eth
+     * @param _subdomain - Subdomain labels; a.b.c.domain.eth = [a, b, c]
      * @param _recordhash - Contenthash to set as recordhash
      */
     function setDeepSubRecordhash(bytes32 _node, string[] calldata _subdomain, bytes calldata _recordhash) external {
@@ -131,6 +130,13 @@ contract CCIP2ETH is iCCIP2ETH {
         emit RecordhashUpdated(msg.sender, _namehash, _recordhash);
     }
 
+    /**
+     * @dev Sets recordhash for a subnode
+     * Note - Only ENS owner or manager of parent node can call
+     * @param _node - Namehash of domain.eth
+     * @param _subdomain - Subdomain labels; a.domain.eth = "a"
+     * @param _recordhash - Contenthash to set as recordhash
+     */
     function setSubRecordhash(bytes32 _node, string calldata _subdomain, bytes calldata _recordhash) external {
         address _owner = ENS.owner(_node);
         if (isWrapper[_owner]) {
@@ -170,7 +176,6 @@ contract CCIP2ETH is iCCIP2ETH {
             bytes memory _recordhash;
             while (index > 0) {
                 _namehash = keccak256(abi.encodePacked(_namehash, keccak256(_labels[--index])));
-                // Check if sub(domain) exists on-chain or off-chain
                 if (ENS.recordExists(_namehash)) {
                     _node = _namehash;
                     _recordhash = recordhash[_namehash];
@@ -302,8 +307,8 @@ contract CCIP2ETH is iCCIP2ETH {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
         string memory _recType = gateway.funcToJson(_request);
-        /// @dev - Timeout in 4 blocks
-        if (block.number < _blocknumber || block.number > _blocknumber + 4) {
+        /// @dev - Timeout in 5 blocks
+        if (block.number > _blocknumber + 5 || block.number < _blocknumber) {
             revert InvalidRequest("CHECK_TIMEOUT");
         }
         if (
@@ -312,23 +317,19 @@ contract CCIP2ETH is iCCIP2ETH {
         ) {
             revert InvalidRequest("BAD_CHECKSUM");
         }
-        /*require(
-            block.number < _blocknumber + 5
-                && _checkHash
-                    == keccak256(abi.encodePacked(this, blockhash(_blocknumber), _owner, _domain, _path, _request, _recType)),
-            "INVALID_CHECKSUM/TIMEOUT"
-        );*/
         address _signer;
         bytes memory _recordSignature;
-        string memory signRequest;
-        bytes4 _type = bytes4(response[:4]);
         bytes memory _approvedSig;
         (_signer, _recordSignature, _approvedSig, result) = abi.decode(response[4:], (address, bytes, bytes, bytes));
         if (_approvedSig.length < 64) {
-            require(_signer == _owner || isApprovedSigner[_owner][_node][_signer], "INVALID_CALLBACK");
+            if (_signer != _owner && !isApprovedSigner[_owner][_node][_signer]) {
+                revert InvalidRequest("NOT_AUTHORIZED");
+            }
         } else if (!approvedSigner(_owner, _signer, _node, _approvedSig, _domain)) {
-            revert InvalidRequest("BAD_RECORD_APPROVAL");
+            revert InvalidRequest("NOT_APPROVED");
         }
+        string memory signRequest;
+        bytes4 _type = bytes4(response[:4]);
         if (_type == iCallbackType.signedRecord.selector) {
             signRequest = string.concat(
                 "Requesting Signature To Update ENS Record\n",
@@ -344,9 +345,9 @@ contract CCIP2ETH is iCCIP2ETH {
             if (_signer != iCCIP2ETH(this).getSigner(signRequest, _recordSignature)) {
                 revert InvalidRequest("BAD_SIGNED_RECORD");
             }
-        } else if (_type == iCallbackType.signedRedirect.selector) {
+        } else if (_type == iCallbackType.signedDAppService.selector) {
             if (result[0] == 0x0 || result[result.length - 1] != 0x0) {
-                return gateway.__fallback(response, extradata);
+                revert InvalidRequest("BAD_DAPP_REQUEST");
             }
             (bytes4 _req, bytes32 _redirectNamehash, bytes memory _redirectRequest, string memory _redirectDomain) =
                 iCCIP2ETH(this).redirectService(result, _request);
@@ -366,14 +367,16 @@ contract CCIP2ETH is iCCIP2ETH {
             }
             address _resolver = ENS.resolver(_redirectNamehash); // Owned node
             if (iERC165(_resolver).supportsInterface(iENSIP10.resolve.selector)) {
-                return iENSIP10(_resolver).resolve(result, _redirectRequest);
+                result = iENSIP10(_resolver).resolve(result, _redirectRequest);
             } else if (iERC165(_resolver).supportsInterface(_req)) {
                 bool ok;
                 (ok, result) = _resolver.staticcall(_redirectRequest);
                 if (!ok) {
-                    revert InvalidRequest("BAD_RESOLVER_RESULT");
+                    revert InvalidRequest("BAD_RESOLVER");
                 }
-                require(result.length > 32 || bytes32(result) > bytes32(0), "RECORD_NOT_SET");
+                if (bytes32(result) == bytes32(0)) {
+                    revert InvalidRequest("RECORD_NOT_SET");
+                }
             } else {
                 revert InvalidRequest("BAD_RESOLVER_FUNCTION");
             }
@@ -467,6 +470,17 @@ contract CCIP2ETH is iCCIP2ETH {
     modifier OnlyDev() {
         require(msg.sender == gateway.owner(), "ONLY_DEV");
         _;
+    }
+
+    uint256 public ownerhashFees = 0; // start fees at 0
+    /**
+     * @dev Set fees for oewnerhash
+     * Note : It's free @ 0, might need this in future dev funding
+     * @param _wei - Fees in WEI per EOA
+     */
+
+    function updateOwnerhashFees(uint256 _wei) external OnlyDev {
+        ownerhashFees = _wei;
     }
 
     /**

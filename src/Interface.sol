@@ -103,10 +103,10 @@ interface iCallbackType {
         bytes memory result // ABI-encoded result
     ) external view returns (bytes memory);
 
-    function signedRedirect(
+    function signedDAppService(
         address recordSigner, // Owner OR On-chain Manager OR Off-chain Manager
         bytes memory recordSignature, // Signature from signer for redirect value
         bytes memory approvedSignature, // bytes1(..) IF signer is owner or on-chain manager
-        bytes memory redirect // DNS-encoded domain.eth to redirect
+        bytes memory redirect // DNS-encoded sub/domain.eth to redirect
     ) external view returns (bytes memory);
 }

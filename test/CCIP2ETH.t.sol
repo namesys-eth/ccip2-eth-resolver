@@ -98,7 +98,7 @@ contract CCIP2ETHTest is Test {
             hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
         ccip2eth.setRecordhash(_namehash, _recordhash);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
-        bytes memory _request = abi.encodeWithSelector(iResolver.text.selector, _namehash, abi.encode(string("avatar")));
+        bytes memory _request = abi.encodeWithSelector(iResolver.text.selector, _namehash, "avatar");
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
             abi.encodePacked(
