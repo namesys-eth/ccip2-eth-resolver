@@ -23,6 +23,27 @@ contract GatewayManagerTest is Test {
 
     xENS public ENS = xENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
 
+    function testFunctionMap() public {
+        bytes[] memory _name = new bytes[](2);
+        _name[0] = "virgil";
+        _name[1] = "eth";
+        (bytes32 _namehash, bytes memory _fullname) = utils.Encode(_name);
+        bytes memory request = abi.encodeWithSelector(iResolver.contenthash.selector, _namehash);
+        assertEq(gateway.funcToJson(request), "contenthash");
+        request = abi.encodeWithSelector(iResolver.addr.selector, _namehash);
+        assertEq(gateway.funcToJson(request), "address/60");
+        request = abi.encodeWithSelector(iResolver.text.selector, _namehash, "avatar");
+        assertEq(gateway.funcToJson(request), "text/avatar");
+        request = abi.encodeWithSelector(iOverloadResolver.addr.selector, _namehash, 1337);
+        assertEq(gateway.funcToJson(request), "address/1337");
+        request = abi.encodeWithSelector(iResolver.interfaceImplementer.selector, _namehash, bytes4(0xffffffff));
+        assertEq(gateway.funcToJson(request), "interface/0xffffffff");
+        request = abi.encodeWithSelector(iResolver.dnsRecord.selector, _namehash, _namehash, uint16(42));
+        assertEq(gateway.funcToJson(request), "dns/42");
+        request = abi.encodeWithSelector(iOverloadResolver.dnsRecord.selector, _namehash, _fullname, uint16(42));
+        assertEq(gateway.funcToJson(request), "dns/42");
+    }
+
     function testChecksumAddress() public {
         string memory addrStr = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
         address addr = address(bytes20(hex"00000000000c2e074ec69a0dfb2997ba6c7d2e1e"));
@@ -113,7 +134,6 @@ contract GatewayManagerTest is Test {
         }
     }*/
 }
-//
 
 contract Utils {
     function Format(bytes calldata _encoded) external pure returns (string memory _path, string memory _domain) {

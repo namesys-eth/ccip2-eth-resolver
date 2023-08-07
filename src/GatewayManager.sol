@@ -68,16 +68,17 @@ contract GatewayManager is iERC173, iGatewayManager {
         view
         returns (string[] memory gateways)
     {
+        if (bytes8(_recordhash[:8]) == bytes8("https://")) {
+            gateways = new string[](1);
+            gateways[0] = string.concat(string(_recordhash), _path, ".json?t={data}");
+            return gateways;
+        }
         unchecked {
             uint256 gLen = Gateways.length;
             uint256 len = (gLen / 2) + 2;
             if (len > 4) len = 4;
             gateways = new string[](len);
             uint256 i;
-            if (bytes8(_recordhash[:8]) == bytes8("https://")) {
-                gateways[0] = string.concat(string(_recordhash), _path, ".json?t={data}");
-                return gateways;
-            }
             if (bytes(PrimaryGateway).length > 0) {
                 gateways[i++] = string.concat(
                     "https://", formatSubdomain(_recordhash), ".", PrimaryGateway, _path, ".json?t={data}"
@@ -87,7 +88,7 @@ contract GatewayManager is iERC173, iGatewayManager {
             bytes1 _prefix = _recordhash[0];
             if (_prefix == 0xe2) {
                 _fullPath = string.concat(
-                    "/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}&format=dag-cbor"
+                    "/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, _recordhash[1] == 0xe5 ? 3 : 2), _path, ".json?t={data}&format=dag-cbor"
                 );
             } else if (_prefix == 0xe5) {
                 _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}");

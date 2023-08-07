@@ -145,13 +145,14 @@ contract CCIP2ETHTest is Test {
         (_namehash, _encoded) = utils.Encode(_name);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
         bytes memory _request =
-            abi.encodeWithSelector(iResolver.text.selector, _namehash, abi.encode(string("showcase")));
+            abi.encodeWithSelector(iResolver.text.selector, _namehash, "avatar");
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
             abi.encodePacked(
                 address(ccip2eth), blockhash(block.number - 1), address(this), _domain, _path, _request, _recType
             )
         );
+        assertEq(_path, "eth/vitalik/up/you/give/gonna/never");
         vm.expectRevert(
             abi.encodeWithSelector(
                 iENSIP10.OffchainLookup.selector,
@@ -316,8 +317,8 @@ contract CCIP2ETHTest is Test {
         _name[1] = "eth";
         (bytes32 _node, bytes memory _encoded) = utils.Encode(_name);
 
-        uint256 OwnerKey = 0xe76878c781aacf151d3ff3f3e7700e218ac2be0acaf75af707093e769c25914a;
-        uint256 SignerKey = 0x00c91d554965e5f925e981314544c673c9c5a04e5dbbc38267fbc0626235b6e1;
+        uint256 OwnerKey = 0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd;
+        uint256 SignerKey = 0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc;
         address _owner = vm.addr(OwnerKey);
         address _signer = vm.addr(SignerKey);
         vm.prank(ENS.owner(_node));
@@ -389,7 +390,8 @@ contract CCIP2ETHTest is Test {
     }
 
     /// @dev Test setting deep recordhash
-    /*function test8_setDeepRecordhash() public {
+    function test8_setDeepRecordhash() public {
+        string[] memory _subdomains = new string[](2);
         _subdomains[0] = "hello";
         _subdomains[1] = "world";
         bytes[] memory _name = new bytes[](2);
@@ -406,7 +408,7 @@ contract CCIP2ETHTest is Test {
         vm.prank(_owner);
         ccip2eth.setRecordhash(_node, _recordhash); // Set recordhash for 'hello.world.domain.eth'
         _encoded;
-    }*/
+    }
 }
 
 /// @dev Utility functions
