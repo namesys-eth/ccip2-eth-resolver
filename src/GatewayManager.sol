@@ -88,7 +88,10 @@ contract GatewayManager is iERC173, iGatewayManager {
             bytes1 _prefix = _recordhash[0];
             if (_prefix == 0xe2) {
                 _fullPath = string.concat(
-                    "/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, _recordhash[1] == 0xe5 ? 3 : 2), _path, ".json?t={data}&format=dag-cbor"
+                    "/api/v0/dag/get?arg=f",
+                    bytesToHexString(_recordhash, _recordhash[1] == 0xe5 ? 3 : 2),
+                    _path,
+                    ".json?t={data}&format=dag-cbor"
                 );
             } else if (_prefix == 0xe5) {
                 _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}");

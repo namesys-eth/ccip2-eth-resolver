@@ -144,8 +144,7 @@ contract CCIP2ETHTest is Test {
         bytes32 _namehash; // Full namehash
         (_namehash, _encoded) = utils.Encode(_name);
         (string memory _path, string memory _domain) = utils.Format(_encoded);
-        bytes memory _request =
-            abi.encodeWithSelector(iResolver.text.selector, _namehash, "avatar");
+        bytes memory _request = abi.encodeWithSelector(iResolver.text.selector, _namehash, "avatar");
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
             abi.encodePacked(
