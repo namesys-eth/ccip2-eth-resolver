@@ -18,6 +18,7 @@ contract CCIP2ETHTest is Test {
     // using Surl for *;
     error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
 
+    address EOA = address(this);
     CCIP2ETH public ccip2eth;
     iGatewayManager public gateway;
     xENS public ENS = xENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
@@ -34,6 +35,20 @@ contract CCIP2ETHTest is Test {
         ccip2eth = new CCIP2ETH(address(gateway));
     }
 
+    function test0() public{
+        bytes[] memory _name = new bytes[](2);
+        _name[0] = "ccip2";
+        _name[1] = "eth";
+        (bytes32 _namehash, bytes memory _encoded) = utils.Encode(_name);
+        address _addr = ENS.owner(_namehash);
+        bytes memory _recordhash =
+            hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
+        vm.prank(_addr);
+        ccip2eth.setRecordhash(_namehash, _recordhash);
+        bytes32 shorthash = 0x3c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c;
+        vm.prank(_addr);
+        ccip2eth.setRecordhash(_namehash, shorthash);
+    }
     /// @dev Get some values
     function test1_UtilsSetup() public {
         bytes[] memory _name = new bytes[](2);
@@ -67,7 +82,7 @@ contract CCIP2ETHTest is Test {
         bytes memory _request = abi.encodeWithSelector(iResolver.addr.selector, _namehash);
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
-            abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), _addr, _domain, _path, _request, _recType)
+            abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), _addr, _domain, _request, _recType)
         );
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -78,7 +93,7 @@ contract CCIP2ETHTest is Test {
                 ),
                 abi.encodePacked(uint16(block.timestamp / 60)),
                 ccip2eth.__callback.selector,
-                abi.encode(_namehash, block.number - 1, _namehash, _checkHash, _domain, _path, _request)
+                abi.encode(_namehash, block.number - 1, _checkHash, _domain, _path, _request)
             )
         );
         ccip2eth.resolve(_encoded, _request);
@@ -102,7 +117,7 @@ contract CCIP2ETHTest is Test {
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
             abi.encodePacked(
-                address(ccip2eth), blockhash(block.number - 1), address(this), _domain, _path, _request, _recType
+                address(ccip2eth), blockhash(block.number - 1), address(this), _domain, _request, _recType
             )
         );
         vm.expectRevert(
@@ -114,7 +129,7 @@ contract CCIP2ETHTest is Test {
                 ),
                 abi.encodePacked(uint16(block.timestamp / 60)),
                 ccip2eth.__callback.selector,
-                abi.encode(_namehash, block.number - 1, _namehash, _checkHash, _domain, _path, _request)
+                abi.encode(_namehash, block.number - 1, _checkHash, _domain, _path, _request)
             )
         );
         ccip2eth.resolve(_encoded, _request);
@@ -148,7 +163,7 @@ contract CCIP2ETHTest is Test {
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
             abi.encodePacked(
-                address(ccip2eth), blockhash(block.number - 1), address(this), _domain, _path, _request, _recType
+                address(ccip2eth), blockhash(block.number - 1), address(this), _domain, _request, _recType
             )
         );
         assertEq(_path, "eth/vitalik/up/you/give/gonna/never");
@@ -161,7 +176,7 @@ contract CCIP2ETHTest is Test {
                 ),
                 abi.encodePacked(uint16(block.timestamp / 60)),
                 ccip2eth.__callback.selector,
-                abi.encode(_baseNode, block.number - 1, _namehash, _checkHash, _domain, _path, _request)
+                abi.encode(_baseNode, block.number - 1, _checkHash, _domain, _encoded, _recType, _request)
             )
         );
         ccip2eth.resolve(_encoded, _request);
@@ -189,10 +204,10 @@ contract CCIP2ETHTest is Test {
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
             abi.encodePacked(
-                address(ccip2eth), blockhash(block.number - 1), address(this), _domain, _path, _request, _recType
+                address(ccip2eth), blockhash(block.number - 1), address(this), _domain, _request, _recType
             )
         );
-        bytes memory _extraData = abi.encode(_node, block.number - 1, _node, _checkHash, _domain, _path, _request);
+        bytes memory _extraData = abi.encode(_node, block.number - 1, _checkHash, _domain, _path, _request);
         vm.expectRevert(
             abi.encodeWithSelector(
                 iENSIP10.OffchainLookup.selector,
@@ -253,9 +268,9 @@ contract CCIP2ETHTest is Test {
         bytes memory _request = abi.encodeWithSelector(iResolver.addr.selector, _node);
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
-            abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), _owner, _domain, _path, _request, _recType)
+            abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), _owner, _domain, _request, _recType)
         );
-        bytes memory _extraData = abi.encode(_node, block.number - 1, _node, _checkHash, _domain, _path, _request);
+        bytes memory _extraData = abi.encode(_node, block.number - 1, _checkHash, _domain, _path, _request);
         vm.expectRevert(
             abi.encodeWithSelector(
                 iENSIP10.OffchainLookup.selector,
@@ -331,9 +346,9 @@ contract CCIP2ETHTest is Test {
         bytes memory _request = abi.encodeWithSelector(iResolver.addr.selector, _node);
         string memory _recType = gateway.funcToJson(_request);
         bytes32 _checkHash = keccak256(
-            abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), _owner, _domain, _path, _request, _recType)
+            abi.encodePacked(address(ccip2eth), blockhash(block.number - 1), _owner, _domain, _request, _recType)
         );
-        bytes memory _extraData = abi.encode(_node, block.number - 1, _node, _checkHash, _domain, _path, _request);
+        bytes memory _extraData = abi.encode(_node, block.number - 1, _checkHash, _domain, _path, _request);
         vm.expectRevert(
             abi.encodeWithSelector(
                 iENSIP10.OffchainLookup.selector,
@@ -389,24 +404,37 @@ contract CCIP2ETHTest is Test {
     }
 
     /// @dev Test setting deep recordhash
-    function test8_setDeepRecordhash() public {
-        string[] memory _subdomains = new string[](2);
-        _subdomains[0] = "hello";
-        _subdomains[1] = "world";
+    function test8_setDeepSubRecordhash() public {
+        string[] memory _subdomain = new string[](2);
+        _subdomain[0] = "hello";
+        _subdomain[1] = "world";
         bytes[] memory _name = new bytes[](2);
         _name[0] = "domain";
         _name[1] = "eth";
-        (bytes32 _node, bytes memory _encoded) = utils.Encode(_name);
-
-        uint256 OwnerKey = 0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd;
-        address _owner = vm.addr(OwnerKey);
+        (bytes32 _node,) = utils.Encode(_name);
         vm.prank(ENS.owner(_node));
-        ENS.setOwner(_node, _owner);
+        ENS.setOwner(_node, EOA);
         bytes memory _recordhash =
             hex"e501017200240801122008dd085b86d16226791544f4628c4efc0936c69221fef17dfac843d9713233bb";
-        vm.prank(_owner);
-        ccip2eth.setRecordhash(_node, _recordhash); // Set recordhash for 'hello.world.domain.eth'
-        _encoded;
+        ccip2eth.setDeepSubRecordhash(_node, _subdomain, _recordhash);
+        vm.expectRevert("NOT_AUTHORIZED");
+        vm.prank(address(0xc0ffee));
+        ccip2eth.setDeepSubRecordhash(_node, _subdomain, _recordhash);
+    }
+
+    function test9_setSubRecordhash() public {
+        bytes[] memory _name = new bytes[](2);
+        _name[0] = "domain";
+        _name[1] = "eth";
+        (bytes32 _node,) = utils.Encode(_name);
+        vm.prank(ENS.owner(_node));
+        ENS.setOwner(_node, EOA);
+        bytes memory _recordhash =
+            hex"e501017200240801122008dd085b86d16226791544f4628c4efc0936c69221fef17dfac843d9713233bb";
+        ccip2eth.setSubRecordhash(_node, "test", _recordhash);
+        vm.expectRevert("NOT_AUTHORIZED");
+        vm.prank(address(0xc0ffee));
+        ccip2eth.setSubRecordhash(_node, "test", _recordhash);
     }
 }
 
