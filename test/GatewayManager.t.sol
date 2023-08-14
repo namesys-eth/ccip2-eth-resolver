@@ -3,16 +3,16 @@ pragma solidity ^0.8.15;
 
 import "forge-std/Test.sol";
 import "src/GatewayManager.sol";
-/**
- * @author freetib.eth, sshmatrix.eth
- * @title CCIP2.eth Resolver tester
- */
 
 interface xENS is iENS {
     function setResolver(bytes32 node, address resolver) external;
     function setOwner(bytes32 node, address owner) external;
 }
 
+/**
+ * @author freetib.eth, sshmatrix.eth
+ * @title CCIP2.eth Gatewat tester
+ */
 contract GatewayManagerTest is Test {
     GatewayManager public gateway;
     Utils public utils = new Utils();
@@ -23,7 +23,41 @@ contract GatewayManagerTest is Test {
 
     xENS public ENS = xENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
 
-    function testChecksumAddress() public {
+    /// @dev Test Web2 gateway as recordhash
+    function test1_Web2Support() public {
+        assertTrue(gateway.isWeb2(abi.encodePacked("https://ccip.namesys.xyz")));
+        assertEq(
+            gateway.randomGateways(
+                abi.encodePacked("https://ccip.namesys.xyz"), string("/.well-known/eth/freetibet/text/avatar"), 0
+            )[0],
+            string("https://ccip.namesys.xyz/.well-known/eth/freetibet/text/avatar.json?t={data}")
+        );
+    }
+
+    /// @dev Test record path mappings
+    function test2_FunctionMap() public {
+        bytes[] memory _name = new bytes[](2);
+        _name[0] = "virgil";
+        _name[1] = "eth";
+        (bytes32 _namehash, bytes memory _fullname) = utils.Encode(_name);
+        bytes memory request = abi.encodeWithSelector(iResolver.contenthash.selector, _namehash);
+        assertEq(gateway.funcToJson(request), "contenthash");
+        request = abi.encodeWithSelector(iResolver.addr.selector, _namehash);
+        assertEq(gateway.funcToJson(request), "address/60");
+        request = abi.encodeWithSelector(iResolver.text.selector, _namehash, "avatar");
+        assertEq(gateway.funcToJson(request), "text/avatar");
+        request = abi.encodeWithSelector(iOverloadResolver.addr.selector, _namehash, 1337);
+        assertEq(gateway.funcToJson(request), "address/1337");
+        request = abi.encodeWithSelector(iResolver.interfaceImplementer.selector, _namehash, bytes4(0xffffffff));
+        assertEq(gateway.funcToJson(request), "interface/0xffffffff");
+        request = abi.encodeWithSelector(iResolver.dnsRecord.selector, _namehash, _namehash, uint16(42));
+        assertEq(gateway.funcToJson(request), "dns/42");
+        request = abi.encodeWithSelector(iOverloadResolver.dnsRecord.selector, _namehash, _fullname, uint16(42));
+        assertEq(gateway.funcToJson(request), "dns/42");
+    }
+
+    /// @dev Test address checksum
+    function test3_ChecksumAddress() public {
         string memory addrStr = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
         address addr = address(bytes20(hex"00000000000c2e074ec69a0dfb2997ba6c7d2e1e"));
         assertEq(gateway.toChecksumAddress(addr), addrStr);
@@ -41,7 +75,8 @@ contract GatewayManagerTest is Test {
         assertEq(gateway.toChecksumAddress(addr), addrStr);
     }
 
-    function testUintToString() public {
+    /// @dev Test uint to string conversion
+    function test4_UintToString() public {
         uint256 n = 1234567890;
         string memory k = "1234567890";
         assertEq(gateway.uintToString(n), k);
@@ -62,7 +97,8 @@ contract GatewayManagerTest is Test {
         assertEq(gateway.uintToString(n), k);
     }
 
-    function testbytesToHexString() public {
+    /// @dev Test bytes to hex string conversion
+    function test5_bytesToHexString() public {
         string memory bStr = "e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
         bytes memory bBytes = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
         assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
@@ -83,38 +119,9 @@ contract GatewayManagerTest is Test {
         bBytes = hex"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFF";
         assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
     }
-
-    /*function testStatic() public view {
-        bytes[] memory _name = new bytes[](2);
-        _name[0] = "freetibet";
-        _name[1] = "eth";
-        (bytes32 _namehash, bytes memory _encoded) = utils.Encode(_name);
-        bytes memory _request = abi.encodePacked(iResolver.contenthash.selector, _namehash);
-        console.logBytes(_request);
-        _request = abi.encodeWithSelector(iResolver.contenthash.selector, _namehash);
-        console.logBytes(_request);
-        if (ENS.recordExists(_namehash)) {
-            address _resolver = ENS.resolver(_namehash);
-            //if (iERC165(_resolver).supportsInterface(iENSIP10.resolve.selector)) {
-            //    return iENSIP10(_resolver).resolve(name, data);
-            //} else
-            if (iERC165(_resolver).supportsInterface(iResolver.contenthash.selector)) {
-                (bool ok, bytes memory result) = _resolver.staticcall(_request);
-                if (ok && result.length > 0) {
-                    console.logBytes(abi.encode(result));
-                    console.logBytes(result);
-                } else {
-                    console.logBytes(abi.encode(result));
-                    console.logBytes(result);
-                }
-            }
-        } else {
-            revert("INVALID_DAPP_SERVICE");
-        }
-    }*/
 }
-//
 
+/// @dev Utility functions
 contract Utils {
     function Format(bytes calldata _encoded) external pure returns (string memory _path, string memory _domain) {
         uint256 n = 1;
