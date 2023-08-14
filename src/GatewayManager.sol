@@ -18,7 +18,8 @@ contract GatewayManager is iERC173, iGatewayManager {
 
     /// @dev - Errors
     error ContenthashNotImplemented(bytes1 _type);
-    error ResolverFunctionNotImplemented(bytes4 func);
+    error InvalidRequest(string _msg);
+    error NotImplemented(bytes4 _func);
 
     /// @dev - Contract owner/multisig address
     address public owner;
@@ -32,7 +33,6 @@ contract GatewayManager is iERC173, iGatewayManager {
     address immutable THIS = address(this);
     /// @dev - Primary IPFS gateway domain, ipfs2.eth.limo
     string public PrimaryGateway = "ipfs2.eth.limo";
-
     /// @dev - List of secondary gateway domains
     string[] public Gateways;
     /// @dev - Resolver function bytes4 selector → Off-chain record filename <name>.json
@@ -63,31 +63,44 @@ contract GatewayManager is iERC173, iGatewayManager {
      * @return gateways - Pseudo-random list of gateway URLs for CCIP-Read
      * Gateway URL e.g. https://gateway.tld/ipns/fe501017200...51735c/.well-known/eth/virgil/avatar.json?t=0x0123456789
      */
-    function randomGateways(bytes calldata _recordhash, string memory _path, uint256 seed)
+    function randomGateways(bytes memory _recordhash, string memory _path, uint256 seed)
         public
         view
         returns (string[] memory gateways)
     {
+        if (_recordhash.length == 32) {
+            // ipns short
+            _recordhash = abi.encodePacked(hex"e5010172002408011220", _recordhash);
+        } else if (iGatewayManager(this).isWeb2(_recordhash)) {
+            //https://
+            gateways = new string[](1);
+            gateways[0] = string.concat(string(_recordhash), _path, ".json?t={data}");
+            return gateways;
+        }
         unchecked {
             uint256 gLen = Gateways.length;
             uint256 len = (gLen / 2) + 2;
             if (len > 4) len = 4;
             gateways = new string[](len);
             uint256 i;
-            if (bytes8(_recordhash[:8]) == bytes8("https://")) {
-                gateways[0] = string.concat(string(_recordhash), _path, ".json?t={data}");
-                return gateways;
-            }
             if (bytes(PrimaryGateway).length > 0) {
                 gateways[i++] = string.concat(
-                    "https://", formatSubdomain(_recordhash), ".", PrimaryGateway, _path, ".json?t={data}"
+                    "https://",
+                    iGatewayManager(this).formatSubdomain(_recordhash),
+                    ".",
+                    PrimaryGateway,
+                    _path,
+                    ".json?t={data}"
                 );
             }
             string memory _fullPath;
             bytes1 _prefix = _recordhash[0];
             if (_prefix == 0xe2) {
                 _fullPath = string.concat(
-                    "/api/v0/dag/get?arg=f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}&format=dag-cbor"
+                    "/api/v0/dag/get?arg=f",
+                    bytesToHexString(_recordhash, _recordhash[1] == 0xe5 ? 3 : 2),
+                    _path,
+                    ".json?t={data}&format=dag-cbor"
                 );
             } else if (_prefix == 0xe5) {
                 _fullPath = string.concat("/ipns/f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}");
@@ -95,10 +108,10 @@ contract GatewayManager is iERC173, iGatewayManager {
                 _fullPath = string.concat("/ipfs/f", bytesToHexString(_recordhash, 2), _path, ".json?t={data}");
             } else if (_prefix == bytes1("k")) {
                 _fullPath = string.concat("/ipns/", string(_recordhash), _path, ".json?t={data}");
-            } else if (bytes2(_recordhash[:2]) == bytes2("ba")) {
+            } else if (_prefix == bytes1("b")) {
                 _fullPath = string.concat("/ipfs/", string(_recordhash), _path, ".json?t={data}");
             } else {
-                revert("UNSUPPORTED_RECORDHASH");
+                revert InvalidRequest("UNSUPPORTED_RECORDHASH");
             }
             while (i < len) {
                 seed = uint256(keccak256(abi.encodePacked(block.number * i, seed)));
@@ -110,10 +123,16 @@ contract GatewayManager is iERC173, iGatewayManager {
     /**
      * Note - Future Feature in CCIP2-v2
      */
-    function __fallback(bytes memory response, bytes memory extradata) external pure returns (bytes memory) {
+    function __fallback(bytes calldata response, bytes calldata extradata) external view returns (bytes memory) {
+        this;
         response;
         extradata;
-        revert("NOT_YET_IMPLEMENTED");
+        revert NotImplemented(iGatewayManager.__fallback.selector);
+    }
+
+    // support managed web2 gateway
+    function isWeb2(bytes calldata _recordhash) external pure returns (bool) {
+        return (bytes8(_recordhash[:8]) == bytes8("https://"));
     }
 
     /**
@@ -144,7 +163,7 @@ contract GatewayManager is iERC173, iGatewayManager {
             }
             _jsonPath = string.concat("dns/", uintToString(resource));
         } else {
-            revert ResolverFunctionNotImplemented(func);
+            revert NotImplemented(func);
         }
     }
 
