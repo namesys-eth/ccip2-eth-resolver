@@ -37,7 +37,23 @@ contract CCIP2ETHTest is Test {
         ccip2eth = new CCIP2ETH(address(gateway), chainID);
     }
 
+    function testRecordHash() public {
+        bytes[] memory _name = new bytes[](2);
+        _name[0] = "ccip2";
+        _name[1] = "eth";
+        (bytes32 _namehash,) = utils.Encode(_name);
+        address _addr = ENS.owner(_namehash);
+        bytes memory _recordhash =
+            hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
+        vm.prank(_addr);
+        ccip2eth.setRecordhash(_namehash, _recordhash);
+        bytes32 shorthash = 0x3c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c;
+        vm.prank(_addr);
+        ccip2eth.setShortRecordhash(_namehash, shorthash);
+        assertEq(_recordhash, ccip2eth.getRecordhash(_namehash));
+    }
     /// @dev Get some values
+
     function test1_UtilsSetup() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "virgil";
@@ -55,7 +71,6 @@ contract CCIP2ETHTest is Test {
 
     /// @dev Test CCIP-Read call for a domain
     function test2_ResolveLevel2() public {
-        string[] memory _subdomains = new string[](0);
         bytes[] memory _name = new bytes[](2);
         _name[0] = "ccip2";
         _name[1] = "eth";
@@ -91,7 +106,6 @@ contract CCIP2ETHTest is Test {
 
     /// @dev Test subdomain-level CCIP-Read call
     function test3_ResolveLevel3() public {
-        string[] memory _subdomains = new string[](0);
         bytes[] memory _name = new bytes[](3);
         _name[0] = "blog";
         _name[1] = "vitalik";
@@ -127,7 +141,6 @@ contract CCIP2ETHTest is Test {
 
     /// @dev Test deep CCIP-Read call
     function test4_ResolveLevel7() public {
-        string[] memory _subdomains = new string[](0);
         bytes[] memory _base = new bytes[](2);
         _base[0] = "vitalik";
         _base[1] = "eth";
@@ -174,7 +187,6 @@ contract CCIP2ETHTest is Test {
 
     /// @dev CCIP end-to-end test with on-chain signer
     function test5_CCIPCallbackApprovedOnChain() public {
-        string[] memory _subdomains = new string[](0);
         bytes[] memory _name = new bytes[](2);
         _name[0] = "domain";
         _name[1] = "eth";
@@ -241,7 +253,6 @@ contract CCIP2ETHTest is Test {
 
     /// @dev CCIP end-to-end test with off-chain signer (with fake parameters)
     function test6_CCIPCallbackApprovedOffChain() public {
-        string[] memory _subdomains = new string[](0);
         bytes[] memory _name = new bytes[](2);
         _name[0] = "domain";
         _name[1] = "eth";
@@ -329,7 +340,6 @@ contract CCIP2ETHTest is Test {
 
     /// @dev CCIP end-to-end with off-chain signer and real parameters
     function test7_CCIPCallbackApprovedOffChain_WithRealParameters() public {
-        string[] memory _subdomains = new string[](0);
         bytes[] memory _name = new bytes[](2);
         _name[0] = "00081";
         _name[1] = "eth";

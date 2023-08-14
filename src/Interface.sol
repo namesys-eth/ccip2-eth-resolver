@@ -57,7 +57,7 @@ interface iGatewayManager is iERC173 {
     function uintToString(uint256 value) external pure returns (string memory);
     function bytesToHexString(bytes calldata _buffer, uint256 _start) external pure returns (string memory);
     function bytes32ToHexString(bytes32 _buffer) external pure returns (string memory);
-    function funcToJson(bytes calldata data) external view returns (string memory _jsonPath);
+    function funcToJson(bytes calldata _request) external view returns (string memory _jsonPath);
     function listGateways() external view returns (string[] memory list);
     function toChecksumAddress(address _addr) external pure returns (string memory);
     function __fallback(bytes calldata response, bytes calldata extradata)
@@ -71,8 +71,6 @@ interface iGatewayManager is iERC173 {
     function formatSubdomain(bytes calldata _recordhash) external pure returns (string memory result);
     function isWeb2(bytes calldata _recordhash) external pure returns (bool);
 }
-
-interface iUtils {}
 
 interface iResolver {
     function contenthash(bytes32 node) external view returns (bytes memory);
@@ -106,14 +104,14 @@ interface iCallbackType {
     function signedRecord(
         address recordSigner, // Owner OR On-Chain Manager OR Off-Chain Manager
         bytes memory recordSignature, // Signature from signer for result value
-        bytes memory approvedSignature, // bytes1(..) IF signer is owner or on-chain manager
+        bytes memory approvedSignature, // bytes length >0 & <64 IF signer is owner or on-chain approved manager
         bytes memory result // ABI-encoded result
     ) external view returns (bytes memory);
 
     function signedRedirect(
         address recordSigner, // Owner OR On-Chain Manager OR Off-Chain Manager
         bytes memory recordSignature, // Signature from signer for redirect value
-        bytes memory approvedSignature, // bytes1(..) IF signer is owner or on-chain manager
-        bytes memory redirect // ABI-encoded recordhash OR DNS-encoded domain.eth to redirect
+        bytes memory approvedSignature, // bytes length >0 & <64 IF signer is owner or on-chain approved manager
+        bytes memory redirect // DNS-encoded sub/domain.eth to redirect
     ) external view returns (bytes memory);
 }

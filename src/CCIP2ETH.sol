@@ -50,8 +50,6 @@ contract CCIP2ETH is iCCIP2ETH {
      * @notice - Should be in generic ENS contenthash format or base32/base36 string URL format
      */
     mapping(bytes32 => bytes) public recordhash;
-    /// @dev - Owner-specific contenthash storing records for all names owned by a wallet
-    mapping(bytes32 => bytes) public ownerhash;
     /// @dev - On-chain singular Manager database
     /// Note - Manager (= isApprovedSigner) is someone who can manage off-chain records for a domain on behalf of its owner
     mapping(address => mapping(bytes32 => mapping(address => bool))) public isApprovedSigner;
@@ -68,6 +66,10 @@ contract CCIP2ETH is iCCIP2ETH {
         /// @dev - Sets ENS Mainnet wrapper as Wrapper
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
         emit UpdatedWrapper(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401, true);
+
+        /// @dev - Sets ENS TESTNET wrapper contract
+        isWrapper[0x0000000000000000000000000000000000000000] = true;
+        emit UpdatedWrapper(0x0000000000000000000000000000000000000000, true);
 
         /// @dev - Set necessary interfaces
         supportsInterface[iERC165.supportsInterface.selector] = true;
@@ -272,7 +274,7 @@ contract CCIP2ETH is iCCIP2ETH {
             bytes32 _checkhash =
                 keccak256(abi.encodePacked(this, blockhash(block.number - 1), _owner, _domain, _recType, request));
             revert OffchainLookup(
-                address(this), // Callback contract (= THIS, for this case)
+                address(this),
                 gateway.randomGateways(
                     _recordhash, string.concat("/.well-known/", _path, "/", _recType), uint256(_checkhash)
                 ), // Generate pseudo-random list of gateways for record resolution
@@ -280,6 +282,44 @@ contract CCIP2ETH is iCCIP2ETH {
                 iCCIP2ETH.__callback.selector, // Callback function
                 abi.encode(_node, block.number - 1, _checkhash, _domain, _recType, _path, name, request)
             );
+            if (_signer != iCCIP2ETH(this).getSigner(signRequest, _recordSignature)) {
+                revert InvalidRequest("BAD_SIGNED_RECORD");
+            }
+        } else if (_type == iCallbackType.signedDAppService.selector) {
+            if (result[0] == 0x0 || result[result.length - 1] != 0x0) {
+                revert InvalidRequest("BAD_DAPP_SERVICE_REQUEST");
+            }
+            (bytes4 _req, bytes32 _redirectNamehash, bytes memory _redirectRequest, string memory _redirectDomain) =
+                iCCIP2ETH(this).redirectService(result, _request);
+            signRequest = string.concat(
+                "Requesting Signature To Install DApp Service\n",
+                "\nOrigin: ",
+                _domain, // e.g. ens.domain.eth
+                "\nDApp: ",
+                _redirectDomain, // e.g. app.ens.eth
+                "\nExtradata: 0x",
+                gateway.bytesToHexString(abi.encodePacked(keccak256(result)), 0),
+                "\nSigned By: eip155:1:",
+                gateway.toChecksumAddress(_signer)
+            );
+            if (_signer != iCCIP2ETH(this).getSigner(signRequest, _recordSignature)) {
+                revert InvalidRequest("BAD_DAPP_SIGNATURE");
+            }
+            address _resolver = ENS.resolver(_redirectNamehash);
+            if (iERC165(_resolver).supportsInterface(iENSIP10.resolve.selector)) {
+                return iENSIP10(_resolver).resolve(result, _redirectRequest);
+            } else if (iERC165(_resolver).supportsInterface(_req)) {
+                bool ok;
+                (ok, result) = _resolver.staticcall(_redirectRequest);
+                if (!ok) {
+                    revert InvalidRequest("BAD_RESOLVER");
+                }
+            } else {
+                revert InvalidRequest("BAD_RESOLVER_FUNCTION");
+            }
+        } else {
+            /// @dev Future features in __fallback
+            return gateway.__fallback(response, extradata);
         }
     }
 

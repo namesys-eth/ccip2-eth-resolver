@@ -33,7 +33,6 @@ contract GatewayManager is iERC173, iGatewayManager {
     address immutable THIS = address(this);
     /// @dev - Primary IPFS gateway domain, ipfs2.eth.limo
     string public PrimaryGateway = "ipfs2.eth.limo";
-
     /// @dev - List of secondary gateway domains
     string[] public Gateways;
     /// @dev - Resolver function bytes4 selector → Off-chain record filename <name>.json

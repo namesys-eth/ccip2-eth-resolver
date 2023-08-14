@@ -1,0 +1,19 @@
+layout {
+	pane {
+		pane {}
+		pane split_direction="vertical" {
+			pane command="bash"  {
+				args "-c" "yarn local"
+			}
+			pane {
+				pane command="bash"  { 
+					args "-c" "yarn localDeploy"
+				}
+			}
+		}
+		pane command="bash"  {
+			args "-c" "yarn jstest"
+		}
+	}
+
+}
