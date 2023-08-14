@@ -101,7 +101,6 @@ contract CCIP2ETHTest is Test {
             )
         );
         ccip2eth.resolve(_encoded, _request);
-        _subdomains;
     }
 
     /// @dev Test subdomain-level CCIP-Read call
@@ -136,7 +135,6 @@ contract CCIP2ETHTest is Test {
             )
         );
         ccip2eth.resolve(_encoded, _request);
-        _subdomains;
     }
 
     /// @dev Test deep CCIP-Read call
@@ -182,7 +180,6 @@ contract CCIP2ETHTest is Test {
             )
         );
         ccip2eth.resolve(_encoded, _request);
-        _subdomains;
     }
 
     /// @dev CCIP end-to-end test with on-chain signer
@@ -248,7 +245,6 @@ contract CCIP2ETHTest is Test {
         bytes memory _response =
             abi.encodeWithSelector(iCallbackType.signedRecord.selector, _signer, _signature, bytes("0"), _result);
         assertEq(_result, ccip2eth.__callback(_response, _extradata));
-        _subdomains;
     }
 
     /// @dev CCIP end-to-end test with off-chain signer (with fake parameters)
@@ -335,7 +331,6 @@ contract CCIP2ETHTest is Test {
         bytes memory _response =
             abi.encodeWithSelector(iCallbackType.signedRecord.selector, _signer, _recordSig, _approvedSig, _result);
         assertEq(_result, ccip2eth.__callback(_response, _extradata));
-        _subdomains;
     }
 
     /// @dev CCIP end-to-end with off-chain signer and real parameters
@@ -422,7 +417,6 @@ contract CCIP2ETHTest is Test {
         bytes memory _response =
             abi.encodeWithSelector(iCallbackType.signedRecord.selector, _signer, _recordSig, _approvedSig, _result);
         assertEq(_result, ccip2eth.__callback(_response, _extradata));
-        _subdomains;
     }
 
     /// @dev Test setting regular and short recordhash
@@ -460,9 +454,9 @@ contract CCIP2ETHTest is Test {
 
     /// @dev Test setting deep recordhash
     function test10_setDeepSubRecordhash() public {
-        string[] memory _subdomain = new string[](2);
-        _subdomain[0] = "hello";
-        _subdomain[1] = "world";
+        string[] memory _subdomains = new string[](2);
+        _subdomains[0] = "hello";
+        _subdomains[1] = "world";
         bytes[] memory _name = new bytes[](2);
         _name[0] = "domain";
         _name[1] = "eth";
@@ -471,10 +465,10 @@ contract CCIP2ETHTest is Test {
         ENS.setOwner(_node, EOA);
         bytes memory _recordhash =
             hex"e501017200240801122008dd085b86d16226791544f4628c4efc0936c69221fef17dfac843d9713233bb";
-        ccip2eth.setDeepSubRecordhash(_node, _subdomain, _recordhash);
+        ccip2eth.setDeepSubRecordhash(_node, _subdomains, _recordhash);
         vm.expectRevert(abi.encodeWithSelector(CCIP2ETH.NotAuthorised.selector, "NOT_APPROVED"));
         vm.prank(address(0xc0ffee));
-        ccip2eth.setDeepSubRecordhash(_node, _subdomain, _recordhash);
+        ccip2eth.setDeepSubRecordhash(_node, _subdomains, _recordhash);
         _encoded;
     }
 }
