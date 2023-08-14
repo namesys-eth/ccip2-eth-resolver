@@ -36,14 +36,17 @@ interface iCCIP2ETH is iENSIP10 {
         external
         view
         returns (address _signer);
-    function setRecordhash(bytes32 _node, bytes calldata _recordhash) external;
+    function setRecordhash(bytes32 _node, bytes calldata _recordhash) external payable;
+    function setShortRecordhash(bytes32 _node, bytes32 _recordhash) external payable;
     function setOwnerhash(bytes calldata _recordhash) external payable;
     function redirectService(bytes calldata _encoded, bytes calldata _requested)
         external
         view
         returns (bytes4 _selector, bytes32 _namehash, bytes memory _redirectRequest, string memory domain);
-    function setDeepSubRecordhash(bytes32 _node, string[] memory _subdomains, bytes calldata _recordhash) external;
-    function setSubRecordhash(bytes32 _node, string memory _subdomain, bytes calldata _recordhash) external;
+    function setDeepSubRecordhash(bytes32 _node, string[] memory _subdomains, bytes calldata _recordhash)
+        external
+        payable;
+    function setSubRecordhash(bytes32 _node, string memory _subdomain, bytes calldata _recordhash) external payable;
 }
 
 interface iGatewayManager is iERC173 {
@@ -65,6 +68,8 @@ interface iGatewayManager is iERC173 {
     function addGateway(string calldata _domain) external;
     function removeGateway(uint256 _index) external;
     function replaceGateway(uint256 _index, string calldata _domain) external;
+    function formatSubdomain(bytes calldata _recordhash) external pure returns (string memory result);
+    function isWeb2(bytes calldata _recordhash) external pure returns (bool);
 }
 
 interface iResolver {
@@ -99,14 +104,14 @@ interface iCallbackType {
     function signedRecord(
         address recordSigner, // Owner OR On-chain Manager OR Off-chain Manager
         bytes memory recordSignature, // Signature from signer for result value
-        bytes memory approvedSignature, // bytes1(..) IF signer is owner or on-chain manager
+        bytes memory approvedSignature, // bytes length >0 & <64 IF signer is owner or on-chain approved manager
         bytes memory result // ABI-encoded result
     ) external view returns (bytes memory);
 
     function signedDAppService(
         address recordSigner, // Owner OR On-chain Manager OR Off-chain Manager
         bytes memory recordSignature, // Signature from signer for redirect value
-        bytes memory approvedSignature, // bytes1(..) IF signer is owner or on-chain manager
+        bytes memory approvedSignature, // bytes length >0 & <64 IF signer is owner or on-chain approved manager
         bytes memory redirect // DNS-encoded sub/domain.eth to redirect
     ) external view returns (bytes memory);
 }

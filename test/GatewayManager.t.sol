@@ -23,6 +23,16 @@ contract GatewayManagerTest is Test {
 
     xENS public ENS = xENS(0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e);
 
+    function testWeb2Support() public {
+        assertTrue(gateway.isWeb2(abi.encodePacked("https://ccip.namesys.xyz")));
+        assertEq(
+            gateway.randomGateways(
+                abi.encodePacked("https://ccip.namesys.xyz"), string("/.well-known/eth/freetibet/text/avatar"), 0
+            )[0],
+            string("https://ccip.namesys.xyz/.well-known/eth/freetibet/text/avatar.json?t={data}")
+        );
+    }
+
     function testFunctionMap() public {
         bytes[] memory _name = new bytes[](2);
         _name[0] = "virgil";
