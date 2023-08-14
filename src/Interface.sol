@@ -42,7 +42,7 @@ interface iCCIP2ETH is iENSIP10 {
     function redirectService(bytes calldata _encoded, bytes calldata _requested)
         external
         view
-        returns (bytes4 _selector, bytes32 _namehash, bytes memory _redirectRequest, string memory domain);
+        returns (bytes4 _selector, bytes32 _namehash, bytes memory _redirectRequest, string memory _domain);
     function setDeepSubRecordhash(bytes32 _node, string[] memory _subdomains, bytes calldata _recordhash)
         external
         payable;
@@ -98,18 +98,18 @@ interface iToken {
 }
 
 // Note - Owner = Owner of domain.eth
-// Note - Manager = On-/Off-chain address approved by Owner
+// Note - Manager = On-/Off-Chain address approved by Owner
 // Note - Signer = Record signer
 interface iCallbackType {
     function signedRecord(
-        address recordSigner, // Owner OR On-chain Manager OR Off-chain Manager
+        address recordSigner, // Owner OR On-Chain Manager OR Off-Chain Manager
         bytes memory recordSignature, // Signature from signer for result value
         bytes memory approvedSignature, // bytes length >0 & <64 IF signer is owner or on-chain approved manager
         bytes memory result // ABI-encoded result
     ) external view returns (bytes memory);
 
-    function signedDAppService(
-        address recordSigner, // Owner OR On-chain Manager OR Off-chain Manager
+    function signedRedirect(
+        address recordSigner, // Owner OR On-Chain Manager OR Off-Chain Manager
         bytes memory recordSignature, // Signature from signer for redirect value
         bytes memory approvedSignature, // bytes length >0 & <64 IF signer is owner or on-chain approved manager
         bytes memory redirect // DNS-encoded sub/domain.eth to redirect

@@ -18,8 +18,8 @@ contract GatewayManager is iERC173, iGatewayManager {
 
     /// @dev - Errors
     error ContenthashNotImplemented(bytes1 _type);
-    error InvalidRequest(string _msg);
-    error NotImplemented(bytes4 _func);
+    error InvalidRequest(string _message);
+    error UnimplementedFeature(bytes4 func);
 
     /// @dev - Contract owner/multisig address
     address public owner;
@@ -68,11 +68,12 @@ contract GatewayManager is iERC173, iGatewayManager {
         view
         returns (string[] memory gateways)
     {
+        /// @dev Filter recordhash vs. web2 gateway
         if (_recordhash.length == 32) {
-            // ipns short
+            // Short IPNS hash
             _recordhash = abi.encodePacked(hex"e5010172002408011220", _recordhash);
         } else if (iGatewayManager(this).isWeb2(_recordhash)) {
-            //https://
+            // Web2 fallback
             gateways = new string[](1);
             gateways[0] = string.concat(string(_recordhash), _path, ".json?t={data}");
             return gateways;
@@ -111,7 +112,7 @@ contract GatewayManager is iERC173, iGatewayManager {
             } else if (_prefix == bytes1("b")) {
                 _fullPath = string.concat("/ipfs/", string(_recordhash), _path, ".json?t={data}");
             } else {
-                revert InvalidRequest("UNSUPPORTED_RECORDHASH");
+                revert InvalidRequest("BAD_RECORDHASH");
             }
             while (i < len) {
                 seed = uint256(keccak256(abi.encodePacked(block.number * i, seed)));
@@ -127,10 +128,14 @@ contract GatewayManager is iERC173, iGatewayManager {
         this;
         response;
         extradata;
-        revert NotImplemented(iGatewayManager.__fallback.selector);
+        revert UnimplementedFeature(iGatewayManager.__fallback.selector);
     }
 
-    // support managed web2 gateway
+    /**
+     * @dev Checks if recordhash is a web2 gateway
+     * @param _recordhash - Recordhash to check
+     * @return - Bool
+     */
     function isWeb2(bytes calldata _recordhash) external pure returns (bool) {
         return (bytes8(_recordhash[:8]) == bytes8("https://"));
     }
@@ -155,15 +160,17 @@ contract GatewayManager is iERC173, iGatewayManager {
         } else if (func == iResolver.ABI.selector) {
             _jsonPath = string.concat("abi/", uintToString(abi.decode(data[36:], (uint256))));
         } else if (func == iResolver.dnsRecord.selector || func == iOverloadResolver.dnsRecord.selector) {
+            // e.g. .well-known/eth/domain/dns/<record>.json
             uint256 resource;
             if (data.length == 100) {
-                (resource) = abi.decode(data[68:], (uint256));
+                // 4 + 32 + 32 + 32 = 100
+                (resource) = abi.decode(data[68:], (uint256)); // Expect uint16
             } else {
                 (,, resource) = abi.decode(data[4:], (bytes32, bytes, uint256));
             }
             _jsonPath = string.concat("dns/", uintToString(resource));
         } else {
-            revert NotImplemented(func);
+            revert UnimplementedFeature(func);
         }
     }
 
