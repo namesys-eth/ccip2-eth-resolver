@@ -566,6 +566,15 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /// @dev : Management functions
+    
+    /// @dev - Returns owner of the contract
+    function owner() public view returns (address) {
+        return gateway.owner();
+    }
+    /// @dev - Updates ChainID in case of a hardfork
+    function updateChainID() public {
+        chainID = gateway.uintToString(block.chainid);
+    }
     /**
      * @dev Sets fees for ownerhash
      * Note - Set to 0 at launch
@@ -614,20 +623,6 @@ contract CCIP2ETH is iCCIP2ETH {
         }
         isWrapper[_addr] = _set;
         emit UpdatedWrapper(_addr, _set);
-    }
-
-    /**
-     * @dev - Updates Chain ID in case of a hardfork
-     */
-    function updateChainID() public {
-        chainID = gateway.uintToString(block.chainid);
-    }
-
-    /**
-     * @dev - Owner of contract
-     */
-    function owner() public view returns (address) {
-        return gateway.owner();
     }
 
     /**
