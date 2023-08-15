@@ -60,14 +60,15 @@ contract CCIP2ETH is iCCIP2ETH {
     mapping(bytes4 => bool) public supportsInterface;
 
     /// @dev - Constructor
-    constructor(address _gateway, string memory _chainID) {
+    constructor(address _gateway) {
         gateway = iGatewayManager(_gateway);
-        chainID = _chainID;
+        chainID = gateway.uintToString(block.chainid);
         /// @dev - Sets ENS Mainnet wrapper as Wrapper
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
         emit UpdatedWrapper(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401, true);
 
         /// @dev - Sets ENS TESTNET wrapper contract
+        /// @TODO - [!!!] REMOVE FOR MAINNET
         isWrapper[0x0000000000000000000000000000000000000000] = true;
         emit UpdatedWrapper(0x0000000000000000000000000000000000000000, true);
 
@@ -538,10 +539,10 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /**
-     * @dev Sets multiple signer (= manager) as approved to manage records for a node
-     * @param _node - Namehash of ENS domain
-     * @param _signer - Address of signer (= manager)
-     * @param _approval - Status to set
+     * @dev Sets multiple signers (= managers) as approved to manage records for a node
+     * @param _node - Namehash[] of ENS domains
+     * @param _signer - Address[] of signers (= managers)
+     * @param _approval - Status[] to set
      */
     function multiApprove(bytes32[] calldata _node, address[] calldata _signer, bool[] calldata _approval) external {
         uint256 len = _node.length;
@@ -613,6 +614,13 @@ contract CCIP2ETH is iCCIP2ETH {
         }
         isWrapper[_addr] = _set;
         emit UpdatedWrapper(_addr, _set);
+    }
+
+    /**
+     * @dev - Updates Chain ID in case of a hardfork
+     */
+    function updateChainID() public {
+        chainID = gateway.uintToString(block.chainid);
     }
 
     /**

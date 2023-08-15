@@ -33,8 +33,8 @@ contract CCIP2ETHTest is Test {
 
     function setUp() public {
         gateway = new GatewayManager();
-        chainID = "5";
-        ccip2eth = new CCIP2ETH(address(gateway), chainID);
+        chainID = gateway.uintToString(block.chainid);
+        ccip2eth = new CCIP2ETH(address(gateway));
     }
 
     function testRecordHash() public {

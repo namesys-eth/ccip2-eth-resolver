@@ -10,9 +10,7 @@ contract CCIP2ETHDeploy is Script {
     function run() external {
         vm.startBroadcast();
         GatewayManager manager = new GatewayManager();
-        //uint256 ChainID = uint256(5);
-        //require(ChainID == uint256(1), "WARNING: Deploying with Goerli ChainID. Please double check [!]"); // Comment this for Goerli deploy
-        new CCIP2ETH(address(manager), "5");
+        new CCIP2ETH(address(manager));
         vm.stopBroadcast();
     }
 }
