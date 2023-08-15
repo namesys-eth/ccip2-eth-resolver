@@ -21,9 +21,9 @@ interface iENS {
 }
 
 interface iENSIP10 {
-    function resolve(bytes memory _name, bytes memory _data) external view returns (bytes memory);
-
     error OffchainLookup(address _to, string[] _gateways, bytes _data, bytes4 _callbackFunction, bytes _extradata);
+
+    function resolve(bytes memory _name, bytes memory _data) external view returns (bytes memory);
 }
 
 interface iCCIP2ETH is iENSIP10 {
