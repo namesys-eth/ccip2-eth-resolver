@@ -471,6 +471,20 @@ contract CCIP2ETHTest is Test {
         ccip2eth.setDeepSubRecordhash(_node, _subdomains, _recordhash);
         _encoded;
     }
+
+    /// @dev Test setting deep recordhash
+    function test10_getRecordhash() public {
+        bytes[] memory _name = new bytes[](2);
+        _name[0] = "domain";
+        _name[1] = "eth";
+        (bytes32 _node, bytes memory _encoded) = utils.Encode(_name);
+        address _owner = ENS.owner(_node);
+        bytes memory _recordhash = ccip2eth.getRecordhash(_node);
+        bytes memory _ownerhash = ccip2eth.getRecordhash(bytes32(uint256(uint160(_owner))));
+        assertEq(_recordhash, bytes(''));
+        assertEq(_ownerhash, bytes(''));
+        _encoded;
+    }
 }
 
 /// @dev Utility functions

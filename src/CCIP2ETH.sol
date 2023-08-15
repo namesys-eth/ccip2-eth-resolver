@@ -69,8 +69,8 @@ contract CCIP2ETH is iCCIP2ETH {
 
         /// @dev - Sets ENS TESTNET wrapper contract
         /// @TODO - [!!!] REMOVE FOR MAINNET
-        isWrapper[0x0000000000000000000000000000000000000000] = true;
-        emit UpdatedWrapper(0x0000000000000000000000000000000000000000, true);
+        isWrapper[0x114D4603199df73e7D157787f8778E21fCd13066] = true;
+        emit UpdatedWrapper(0x114D4603199df73e7D157787f8778E21fCd13066, true);
 
         /// @dev - Set necessary interfaces
         supportsInterface[iERC165.supportsInterface.selector] = true;
@@ -92,11 +92,13 @@ contract CCIP2ETH is iCCIP2ETH {
     /**
      * @dev Gets recordhash for a node
      * @param _node - Namehash of domain.eth, or bytes32(address _Owner)
-     * @param _recordhash - IPNS Contenthash to set as recordhash
+     * @return _recordhash - IPNS contenthash that is set as recordhash
      */
     function getRecordhash(bytes32 _node) external view returns (bytes memory _recordhash) {
         _recordhash = recordhash[_node];
-        if (_recordhash.length == 0) {
+        // Check if first 12 bytes are bytes12(0)
+        bool _isQueryOwnerhash = _node & bytes32(uint256(0xFFFFFFFFFFFFFFFFFFFFFFFF) >> 96) == bytes32(0);
+        if (_recordhash.length == 0 && !_isQueryOwnerhash) {
             address _owner = ENS.owner(_node);
             if (isWrapper[_owner]) {
                 _owner = iToken(_owner).ownerOf(uint256(_node));
@@ -112,7 +114,7 @@ contract CCIP2ETH is iCCIP2ETH {
      * @dev Sets standard recordhash for a node
      * Note - Only ENS owner or manager of node can call
      * @param _node - Namehash of domain.eth
-     * @param _recordhash - IPNS Contenthash to set as recordhash
+     * @param _recordhash - IPNS contenthash to set as recordhash
      */
     function setRecordhash(bytes32 _node, bytes calldata _recordhash) external payable {
         address _owner = ENS.owner(_node);
@@ -131,7 +133,7 @@ contract CCIP2ETH is iCCIP2ETH {
      * Note - Without the constant prefix hex'e5010172002408011220'
      * Note - Only ENS owner or manager of node can call
      * @param _node - Namehash of domain.eth
-     * @param _recordhash - Short IPNS Contenthash to set as recordhash
+     * @param _recordhash - Short IPNS contenthash to set as recordhash
      */
     function setShortRecordhash(bytes32 _node, bytes32 _recordhash) external payable {
         address _owner = ENS.owner(_node);
@@ -148,7 +150,7 @@ contract CCIP2ETH is iCCIP2ETH {
     /**
      * @dev Sets ownerhash for an owner
      * Note - Wallet-specific fallback recordhash
-     * @param _recordhash - Short IPNS Contenthash to set as ownerhash
+     * @param _recordhash - Short IPNS contenthash to set as ownerhash
      */
     function setOwnerhash(bytes calldata _recordhash) external payable {
         if (msg.value < ownerhashFees) {
@@ -162,7 +164,7 @@ contract CCIP2ETH is iCCIP2ETH {
      * @dev Sets ownerhash for an owner
      * Note - Without the constant prefix hex'e5010172002408011220'
      * Note - Wallet-specific fallback recordhash
-     * @param _recordhash - Short IPNS Contenthash to set as ownerhash
+     * @param _recordhash - Short IPNS contenthash to set as ownerhash
      */
     function setShortOwnerhash(bytes32 _recordhash) external payable {
         if (msg.value < ownerhashFees) {
@@ -178,8 +180,8 @@ contract CCIP2ETH is iCCIP2ETH {
      * @dev Sets recordhash for a subnode
      * Note - Only ENS owner or manager of parent node can call
      * @param _node - Namehash of domain.eth
-     * @param _subdomain - Subdomain labels; a.domain.eth = "a"
-     * @param _recordhash - Contenthash to set as recordhash
+     * @param _subdomain - Subdomain labels; sub.domain.eth = "sub"
+     * @param _recordhash - IPNS contenthash to set as recordhash
      */
     function setSubRecordhash(bytes32 _node, string calldata _subdomain, bytes calldata _recordhash) external payable {
         address _owner = ENS.owner(_node);
@@ -199,7 +201,7 @@ contract CCIP2ETH is iCCIP2ETH {
      * Note - Only ENS owner or manager of parent node can call
      * @param _node - Namehash of domain.eth
      * @param _subdomain - Subdomain labels; a.b.c.domain.eth = [a, b, c]
-     * @param _recordhash - Contenthash to set as recordhash
+     * @param _recordhash - IPNS contenthash to set as recordhash
      */
     function setDeepSubRecordhash(bytes32 _node, string[] calldata _subdomain, bytes calldata _recordhash)
         external
@@ -566,12 +568,13 @@ contract CCIP2ETH is iCCIP2ETH {
     }
 
     /// @dev : Management functions
-    
+
     /// @dev - Returns owner of the contract
     function owner() public view returns (address) {
         return gateway.owner();
     }
     /// @dev - Updates ChainID in case of a hardfork
+
     function updateChainID() public {
         chainID = gateway.uintToString(block.chainid);
     }
@@ -580,6 +583,7 @@ contract CCIP2ETH is iCCIP2ETH {
      * Note - Set to 0 at launch
      * @param _wei - Fees in WEI per EOA
      */
+
     function updateOwnerhashFees(uint256 _wei) external OnlyDev {
         ownerhashFees = _wei;
     }
