@@ -38,15 +38,15 @@ interface iCCIP2ETH is iENSIP10 {
         returns (address _signer);
     function setRecordhash(bytes32 _node, bytes calldata _recordhash) external payable;
     function setShortRecordhash(bytes32 _node, bytes32 _recordhash) external payable;
+    function setSubRecordhash(bytes32 _node, string memory _subdomain, bytes calldata _recordhash) external payable;
+    function setDeepSubRecordhash(bytes32 _node, string[] memory _subdomains, bytes calldata _recordhash)
+        external
+        payable;
     function setOwnerhash(bytes calldata _recordhash) external payable;
     function redirectService(bytes calldata _encoded, bytes calldata _requested)
         external
         view
         returns (bytes4 _selector, bytes32 _namehash, bytes memory _redirectRequest, string memory _domain);
-    function setDeepSubRecordhash(bytes32 _node, string[] memory _subdomains, bytes calldata _recordhash)
-        external
-        payable;
-    function setSubRecordhash(bytes32 _node, string memory _subdomain, bytes calldata _recordhash) external payable;
 }
 
 interface iGatewayManager is iERC173 {

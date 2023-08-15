@@ -77,6 +77,7 @@ contract CCIP2ETH is iCCIP2ETH {
         supportsInterface[iENSIP10.resolve.selector] = true;
         supportsInterface[type(iERC173).interfaceId] = true;
         supportsInterface[iCCIP2ETH.setRecordhash.selector] = true;
+        supportsInterface[iCCIP2ETH.setOwnerhash.selector] = true;
         supportsInterface[iCallbackType.signedRecord.selector] = true;
         supportsInterface[iCallbackType.signedRedirect.selector] = true;
     }
