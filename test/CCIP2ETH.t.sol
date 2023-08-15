@@ -12,7 +12,7 @@ interface xENS is iENS {
 
 /**
  * @author freetib.eth, sshmatrix.eth
- * @title CCIP2.eth Resolver tester 
+ * @title CCIP2.eth Resolver tester
  * Note Tests unwrapped/legacy domains
  */
 contract CCIP2ETHTestLegacy is Test {
@@ -496,7 +496,7 @@ contract CCIP2ETHTestLegacy is Test {
 
 /**
  * @author freetib.eth, sshmatrix.eth
- * @title CCIP2.eth Resolver tester 
+ * @title CCIP2.eth Resolver tester
  * Note Tests wrapped domains
  */
 contract CCIP2ETHTestWrapped is Test {

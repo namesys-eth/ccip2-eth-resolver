@@ -97,9 +97,7 @@ contract CCIP2ETH is iCCIP2ETH {
      */
     function getRecordhash(bytes32 _node) external view returns (bytes memory _recordhash) {
         _recordhash = recordhash[_node];
-        // Check if first 12 bytes are bytes12(0)
-        bool _isQueryOwnerhash = _node & bytes32(uint256(0xFFFFFFFFFFFFFFFFFFFFFFFF) >> 96) == bytes32(0);
-        if (_recordhash.length == 0 && !_isQueryOwnerhash) {
+        if (_recordhash.length == 0) {
             address _owner = ENS.owner(_node);
             if (isWrapper[_owner]) {
                 _owner = iToken(_owner).ownerOf(uint256(_node));
