@@ -30,7 +30,7 @@ jobs:
 
       - name: Run Forge tests
         run: |
-          forge test --fork-url https://rpc.ankr.com/eth_goerli -vvvv --fork-block-number 8897000
+          forge test --fork-url https://rpc.ankr.com/eth_goerli -vvvv --fork-block-number 8897777
         id: test
         
       - name: Initialise status badge
