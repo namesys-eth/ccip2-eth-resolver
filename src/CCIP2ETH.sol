@@ -62,7 +62,7 @@ contract CCIP2ETH is iCCIP2ETH {
     /// @dev - Constructor
     constructor(address _gateway) {
         gateway = iGatewayManager(_gateway);
-        chainID = gateway.uintToString(block.chainid);
+        chainID = block.chainid == 1 ? "1" : "5"; // mainnet or goerli
         /// @dev - Sets ENS Mainnet wrapper as Wrapper
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
         emit UpdatedWrapper(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401, true);
@@ -80,14 +80,6 @@ contract CCIP2ETH is iCCIP2ETH {
         supportsInterface[iCCIP2ETH.setOwnerhash.selector] = true;
         supportsInterface[iCallbackType.signedRecord.selector] = true;
         supportsInterface[iCallbackType.signedRedirect.selector] = true;
-    }
-
-    /// Note - Checks for admin privileges
-    modifier OnlyDev() {
-        if (msg.sender != gateway.owner()) {
-            revert NotAuthorised("NOT_DEV");
-        }
-        _;
     }
 
     /**
@@ -268,9 +260,6 @@ contract CCIP2ETH is iCCIP2ETH {
             }
             if (_recordhash.length == 0) {
                 _recordhash = recordhash[bytes32(uint256(uint160(_owner)))];
-                if (_recordhash.length == 0) {
-                    _recordhash = abi.encodePacked("https://ccip.namesys.xyz"); // Web2 fallback
-                }
             }
             string memory _recType = gateway.funcToJson(request); // Filename for the requested record
             bytes32 _checkhash =
@@ -312,14 +301,14 @@ contract CCIP2ETH is iCCIP2ETH {
             string memory _domain, // String-formatted complete 'a.b.c.domain.eth'
             string memory _recType, // Record type
             , // Complete reverse-DNS path for __fallback()
-            , // DNS-encoded domain.eth
+            , // DNS-encoded full domain.eth
             bytes memory _request // Format: <bytes4> + <namehash> + <extradata>
         ) = abi.decode(extradata, (bytes32, uint256, bytes32, string, string, string, bytes, bytes));
         address _owner = ENS.owner(_node);
         if (isWrapper[_owner]) {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
-        /// @dev - Timeout in 4 blocks (must be < 256 blocks)
+        /// @dev - Timeout in 4 blocks
         if (block.number > _blocknumber + 5) {
             revert InvalidRequest("BLOCK_TIMEOUT");
         }
@@ -382,7 +371,7 @@ contract CCIP2ETH is iCCIP2ETH {
                 "Requesting Signature To Install dApp Service\n",
                 "\nOrigin: ",
                 _domain, // e.g. ens.domain.eth
-                "\ndApp: ",
+                "\nDApp: ",
                 _redirectDomain, // e.g. app.ens.eth
                 "\nExtradata: 0x",
                 gateway.bytesToHexString(abi.encodePacked(keccak256(result)), 0),
@@ -568,21 +557,29 @@ contract CCIP2ETH is iCCIP2ETH {
 
     /// @dev : Management functions
 
+    /// @dev : Checks for admin privileges
+    modifier OnlyDev() {
+        if (msg.sender != gateway.owner()) {
+            revert NotAuthorised("NOT_DEV");
+        }
+        _;
+    }
+
     /// @dev - Returns owner of the contract
     function owner() public view returns (address) {
         return gateway.owner();
     }
-    /// @dev - Updates ChainID in case of a hardfork
 
+    /// @dev - Updates ChainID in case of a hardfork
     function updateChainID() public {
         chainID = gateway.uintToString(block.chainid);
     }
+
     /**
      * @dev Sets fees for ownerhash
      * Note - Set to 0 at launch
      * @param _wei - Fees in WEI per EOA
      */
-
     function updateOwnerhashFees(uint256 _wei) external OnlyDev {
         ownerhashFees = _wei;
     }
