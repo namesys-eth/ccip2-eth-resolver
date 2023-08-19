@@ -12,14 +12,16 @@ import "./Interface.sol";
  */
 contract GatewayManager is iERC173, iGatewayManager {
     /// @dev - Events
-    event AddGateway(string indexed domain);
-    event RemoveGateway(string indexed domain);
-    event UpdateFuncFile(bytes4 _func, string _name);
+    event Web3GatewayUpdated(string indexed _domain);
+    event Web3GatewayRemoved(string indexed _domain);
+    event Web2GatewayUpdated(string indexed _domain);
+    event Web2GatewayRemoved(string indexed _domain);
+    event FuncMapUpdated(bytes4 _func, string _name);
 
     /// @dev - Errors
     error ContenthashNotImplemented(bytes1 _type);
     error InvalidRequest(string _message);
-    error UnimplementedFeature(bytes4 func);
+    error FeatureNotImplemented(bytes4 func);
 
     /// @dev - Contract owner/multisig address
     address public owner;
@@ -33,8 +35,10 @@ contract GatewayManager is iERC173, iGatewayManager {
     address immutable THIS = address(this);
     /// @dev - Primary IPFS gateway domain, ipfs2.eth.limo
     string public PrimaryGateway = "ipfs2.eth.limo";
-    /// @dev - List of secondary gateway domains
-    string[] public Gateways;
+    /// @dev - List of secondary gateway domains (default)
+    string[] public Web3Gateways;
+    /// @dev - List of web2 or L2 service gateway domains (fallback)
+    string[] public Web2Gateways;
     /// @dev - Resolver function bytes4 selector → Off-chain record filename <name>.json
     mapping(bytes4 => string) public funcMap;
 
@@ -49,10 +53,12 @@ contract GatewayManager is iERC173, iGatewayManager {
         funcMap[iResolver.contenthash.selector] = "contenthash";
         funcMap[iResolver.zonehash.selector] = "dns/zonehash";
         /// @dev - Set initial list of secondary gateways
-        Gateways.push("dweb.link");
-        emit AddGateway("dweb.link");
-        Gateways.push("ipfs.io");
-        emit AddGateway("ipfs.io");
+        Web3Gateways.push("dweb.link");
+        emit Web3GatewayUpdated("dweb.link");
+        Web3Gateways.push("ipfs.io");
+        emit Web3GatewayUpdated("ipfs.io");
+        Web2Gateways.push("ccip.namesys.xyz");
+        emit Web2GatewayUpdated("ccip.namesys.xyz");
     }
 
     /**
@@ -68,21 +74,30 @@ contract GatewayManager is iERC173, iGatewayManager {
         view
         returns (string[] memory gateways)
     {
-        /// @dev Filter recordhash vs. web2 gateway
-        if (_recordhash.length == 32) {
-            // Short IPNS hash
-            _recordhash = abi.encodePacked(hex"e5010172002408011220", _recordhash);
-        } else if (iGatewayManager(this).isWeb2(_recordhash)) {
-            // Web2 fallback
+        /// @dev Filter IPNS versus Web2 gateway
+        if (_recordhash.length == 0) {
+            /// Default L2 or web2 Service fallback
+            uint256 gateLen = Web2Gateways.length;
+            gateways = new string[](gateLen);
+            while (gateLen > 0) {
+                --gateLen;
+                gateways[gateLen] = string.concat(string("https://"), Web2Gateways[gateLen], _path, ".json?t={data}");
+            }
+            return gateways;
+        } else if (_recordhash[0] == bytes1("h") && iGatewayManager(this).isWeb2(_recordhash)) {
+            /// Trusted web2 gateway set by the owner
             gateways = new string[](1);
             gateways[0] = string.concat(string(_recordhash), _path, ".json?t={data}");
             return gateways;
+        } else if (_recordhash.length == 32) {
+            /// Short IPNS hash set by owner
+            _recordhash = abi.encodePacked(hex"e5010172002408011220", _recordhash);
         }
         unchecked {
-            uint256 gLen = Gateways.length;
+            uint256 gLen = Web3Gateways.length;
             uint256 len = (gLen / 2) + 2;
-            if (len > 4) len = 4;
-            gateways = new string[](len);
+            if (len > 3) len = 3;
+            gateways = new string[](len + 1);
             uint256 i;
             if (bytes(PrimaryGateway).length > 0) {
                 gateways[i++] = string.concat(
@@ -116,8 +131,9 @@ contract GatewayManager is iERC173, iGatewayManager {
             }
             while (i < len) {
                 seed = uint256(keccak256(abi.encodePacked(block.number * i, seed)));
-                gateways[i++] = string.concat("https://", Gateways[seed % gLen], _fullPath);
+                gateways[i++] = string.concat("https://", Web3Gateways[seed % gLen], _fullPath);
             }
+            gateways[len] = string.concat("https://", Web2Gateways[0], _fullPath); // Fallback
         }
     }
 
@@ -128,7 +144,7 @@ contract GatewayManager is iERC173, iGatewayManager {
         this;
         response;
         extradata;
-        revert UnimplementedFeature(iGatewayManager.__fallback.selector);
+        revert FeatureNotImplemented(iGatewayManager.__fallback.selector);
     }
 
     /**
@@ -170,7 +186,7 @@ contract GatewayManager is iERC173, iGatewayManager {
             }
             _jsonPath = string.concat("dns/", uintToString(resource));
         } else {
-            revert UnimplementedFeature(func);
+            revert FeatureNotImplemented(func);
         }
     }
 
@@ -281,46 +297,89 @@ contract GatewayManager is iERC173, iGatewayManager {
      */
     function addFuncMap(bytes4 _func, string calldata _name) external onlyDev {
         funcMap[_func] = _name;
-        emit UpdateFuncFile(_func, _name);
+        emit FuncMapUpdated(_func, _name);
     }
 
     /**
-     * @dev Shows list of all available gateways
-     * @return list - List of gateways
+     * @dev Shows list of web3 gateways
+     * @return - List of web3 gateways
      */
-    function listGateways() external view returns (string[] memory list) {
-        return Gateways;
+    function listWeb3Gateways() external view returns (string[] memory) {
+        return Web3Gateways;
+    }
+
+    /**
+     * @dev Add a single web3 gateway
+     * @param _domain - New web3 gateway domain to add
+     */
+    function addWeb3Gateway(string calldata _domain) external onlyDev {
+        Web3Gateways.push(_domain);
+        emit Web3GatewayUpdated(_domain);
+    }
+
+    /**
+     * @dev Remove a single web3 gateway
+     * @param _index - Gateway index to remove
+     */
+    function removeWeb3Gateway(uint256 _index) external onlyDev {
+        if (Web3Gateways.length == 1) {
+            revert InvalidRequest("LAST_GATEWAY");
+        }
+        emit Web3GatewayRemoved(Web3Gateways[_index]); // Emit first
+        Web3Gateways[_index] = Web3Gateways[Web3Gateways.length - 1]; // Update later
+        Web3Gateways.pop();
+    }
+
+    /**
+     * @dev Replace a single web3 gateway
+     * @param _index : Gateway index to replace
+     * @param _domain : New gateway domain.tld
+     */
+    function replaceWeb3Gateway(uint256 _index, string calldata _domain) external onlyDev {
+        emit Web3GatewayRemoved(Web3Gateways[_index]); // Emit first
+        Web3Gateways[_index] = _domain; // Update later
+        emit Web3GatewayUpdated(_domain);
+    }
+
+    /**
+     * @dev Shows list of web2 gateways
+     * @return - List of web2 gateways
+     */
+    function listWeb2Gateways() external view returns (string[] memory) {
+        return Web2Gateways;
     }
 
     /**
      * @dev Add a single gateway
      * @param _domain - New gateway domain to add
      */
-    function addGateway(string calldata _domain) external onlyDev {
-        Gateways.push(_domain);
-        emit AddGateway(_domain);
+    function addWeb2Gateway(string calldata _domain) external onlyDev {
+        Web2Gateways.push(_domain);
+        emit Web2GatewayUpdated(_domain);
     }
-
     /**
-     * @dev Remove a single gateway
+     * @dev Remove a single web2 gateway
      * @param _index - Gateway index to remove
      */
-    function removeGateway(uint256 _index) external onlyDev {
-        require(Gateways.length > 1, "Last Gateway");
-        emit RemoveGateway(Gateways[_index]);
-        Gateways[_index] = Gateways[Gateways.length - 1];
-        Gateways.pop();
+
+    function removeWeb2Gateway(uint256 _index) external onlyDev {
+        if (Web2Gateways.length == 1) {
+            revert InvalidRequest("LAST_GATEWAY");
+        }
+        emit Web2GatewayRemoved(Web2Gateways[_index]);
+        Web2Gateways[_index] = Web2Gateways[Web2Gateways.length - 1];
+        Web2Gateways.pop();
     }
 
     /**
-     * @dev Replace a single gateway
+     * @dev Replace a single web2 gateway
      * @param _index : Gateway index to replace
      * @param _domain : New gateway domain.tld
      */
-    function replaceGateway(uint256 _index, string calldata _domain) external onlyDev {
-        emit RemoveGateway(Gateways[_index]);
-        Gateways[_index] = _domain;
-        emit AddGateway(_domain);
+    function replaceWeb2Gateway(uint256 _index, string calldata _domain) external onlyDev {
+        emit Web2GatewayRemoved(Web2Gateways[_index]); // Emit first
+        Web2Gateways[_index] = _domain; // Update later
+        emit Web2GatewayUpdated(_domain);
     }
 
     /**

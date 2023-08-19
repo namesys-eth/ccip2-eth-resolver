@@ -58,16 +58,20 @@ interface iGatewayManager is iERC173 {
     function bytesToHexString(bytes calldata _buffer, uint256 _start) external pure returns (string memory);
     function bytes32ToHexString(bytes32 _buffer) external pure returns (string memory);
     function funcToJson(bytes calldata _request) external view returns (string memory _jsonPath);
-    function listGateways() external view returns (string[] memory list);
     function toChecksumAddress(address _addr) external pure returns (string memory);
     function __fallback(bytes calldata response, bytes calldata extradata)
         external
         view
         returns (bytes memory result);
     function addFuncMap(bytes4 _func, string calldata _name) external;
-    function addGateway(string calldata _domain) external;
-    function removeGateway(uint256 _index) external;
-    function replaceGateway(uint256 _index, string calldata _domain) external;
+    function listWeb2Gateways() external view returns (string[] memory list);
+    function addWeb2Gateway(string calldata _domain) external;
+    function removeWeb2Gateway(uint256 _index) external;
+    function replaceWeb2Gateway(uint256 _index, string calldata _domain) external;
+    function listWeb3Gateways() external view returns (string[] memory list);
+    function addWeb3Gateway(string calldata _domain) external;
+    function removeWeb3Gateway(uint256 _index) external;
+    function replaceWeb3Gateway(uint256 _index, string calldata _domain) external;
     function formatSubdomain(bytes calldata _recordhash) external pure returns (string memory result);
     function isWeb2(bytes calldata _recordhash) external pure returns (bool);
 }

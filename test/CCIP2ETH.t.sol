@@ -16,7 +16,6 @@ interface xENS is iENS {
  * Note Tests unwrapped/legacy domains
  */
 contract CCIP2ETHTestLegacy is Test {
-    // using Surl for *;
     error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
 
     address EOA = address(this);
@@ -500,7 +499,6 @@ contract CCIP2ETHTestLegacy is Test {
  * Note Tests wrapped domains
  */
 contract CCIP2ETHTestWrapped is Test {
-    // using Surl for *;
     error OffchainLookup(address sender, string[] urls, bytes callData, bytes4 callbackFunction, bytes extraData);
 
     address EOA = address(this);
