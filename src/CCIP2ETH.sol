@@ -67,11 +67,6 @@ contract CCIP2ETH is iCCIP2ETH {
         isWrapper[0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401] = true;
         emit UpdatedWrapper(0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401, true);
 
-        /// @dev - Sets ENS TESTNET wrapper contract
-        /// @TODO - [!!!] REMOVE FOR MAINNET
-        isWrapper[0x114D4603199df73e7D157787f8778E21fCd13066] = true;
-        emit UpdatedWrapper(0x114D4603199df73e7D157787f8778E21fCd13066, true);
-
         /// @dev - Set necessary interfaces
         supportsInterface[iERC165.supportsInterface.selector] = true;
         supportsInterface[iENSIP10.resolve.selector] = true;
@@ -88,7 +83,7 @@ contract CCIP2ETH is iCCIP2ETH {
      * @return _recordhash - IPNS contenthash that is set as recordhash
      */
     function getRecordhash(bytes32 _node) external view returns (bytes memory _recordhash) {
-        _recordhash = recordhash[_node]; // > Fix here
+        _recordhash = recordhash[_node];
         if (_recordhash.length == 0) {
             address _owner = ENS.owner(_node);
             if (isWrapper[_owner]) {
@@ -308,8 +303,8 @@ contract CCIP2ETH is iCCIP2ETH {
         if (isWrapper[_owner]) {
             _owner = iToken(_owner).ownerOf(uint256(_node));
         }
-        /// @dev - Timeout in 4 blocks
-        if (block.number > _blocknumber + 5) {
+        /// @dev - Timeout in 6 blocks
+        if (block.number > _blocknumber + 7) {
             revert InvalidRequest("BLOCK_TIMEOUT");
         }
         /// @dev - Verify checkhash
