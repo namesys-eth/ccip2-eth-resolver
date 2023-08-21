@@ -296,7 +296,7 @@ contract CCIP2ETH is iCCIP2ETH {
             string memory _domain, // String-formatted complete 'a.b.c.domain.eth'
             string memory _recType, // Record type
             , // Complete reverse-DNS path for __fallback()
-            , // DNS-encoded domain.eth
+            , // DNS-encoded full domain.eth
             bytes memory _request // Format: <bytes4> + <namehash> + <extradata>
         ) = abi.decode(extradata, (bytes32, uint256, bytes32, string, string, string, bytes, bytes));
         address _owner = ENS.owner(_node);
@@ -569,12 +569,12 @@ contract CCIP2ETH is iCCIP2ETH {
     function updateChainID() public {
         chainID = gateway.uintToString(block.chainid);
     }
+
     /**
      * @dev Sets fees for ownerhash
      * Note - Set to 0 at launch
      * @param _wei - Fees in WEI per EOA
      */
-
     function updateOwnerhashFees(uint256 _wei) external OnlyDev {
         ownerhashFees = _wei;
     }
