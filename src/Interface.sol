@@ -74,16 +74,7 @@ interface iGatewayManager is iERC173 {
     function replaceWeb3Gateway(uint256 _index, string calldata _domain) external;
     function formatSubdomain(bytes calldata _recordhash) external pure returns (string memory result);
     function isWeb2(bytes calldata _recordhash) external pure returns (bool);
-
-    function listWeb2Gateways() external view returns (string[] memory list);
-    function addWeb2Gateway(string calldata _domain) external;
-    function removeWeb2Gateway(uint256 _index) external;
-    function replaceWeb2Gateway(uint256 _index, string calldata _domain) external;
-
-    function listWeb3Gateways() external view returns (string[] memory list);
-    function addWeb3Gateway(string calldata _domain) external;
-    function removeWeb3Gateway(uint256 _index) external;
-    function replaceWeb3Gateway(uint256 _index, string calldata _domain) external;
+    //
 }
 
 interface iResolver {
