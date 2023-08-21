@@ -120,12 +120,13 @@ contract GatewayManagerTest is Test {
         assertEq(bStr, gateway.bytesToHexString(bBytes, 0));
     }
 
+    /// @dev Test web2 gateways
     function test6_Web2Gateways() public {
         string[] memory gateways = gateway.listWeb2Gateways();
         assertEq("ccip.namesys.xyz", gateways[0]);
         assertEq(1, gateways.length);
 
-        vm.expectRevert("Last Gateway");
+        vm.expectRevert(abi.encodeWithSelector(GatewayManager.InvalidRequest.selector, "LAST_GATEWAY"));
         gateway.removeWeb2Gateway(0);
 
         gateway.addWeb2Gateway("ccip2.namesys.xyz");
@@ -133,7 +134,7 @@ contract GatewayManagerTest is Test {
         assertEq("ccip.namesys.xyz", gateways[0]);
         assertEq("ccip2.namesys.xyz", gateways[1]);
         assertEq(2, gateways.length);
-        
+
         gateway.replaceWeb2Gateway(1, "ccipx.namesys.xyz");
         gateways = gateway.listWeb2Gateways();
         assertEq("ccip.namesys.xyz", gateways[0]);
@@ -151,10 +152,9 @@ contract GatewayManagerTest is Test {
         gateways = gateway.listWeb2Gateways();
         assertEq("ccip.namesys.xyz", gateways[0]);
         assertEq(1, gateways.length);
-
     }
 
-
+    /// @dev Test web3 gateways
     function test7_Web3Gateways() public {
         string[] memory gateways = gateway.listWeb3Gateways();
         assertEq("dweb.link", gateways[0]);
@@ -162,7 +162,7 @@ contract GatewayManagerTest is Test {
         assertEq(2, gateways.length);
 
         gateway.removeWeb3Gateway(0);
-        vm.expectRevert("Last Gateway");
+        vm.expectRevert(abi.encodeWithSelector(GatewayManager.InvalidRequest.selector, "LAST_GATEWAY"));
         gateway.removeWeb3Gateway(0);
 
         gateway.addWeb3Gateway("dweb.link");
@@ -170,7 +170,7 @@ contract GatewayManagerTest is Test {
         assertEq("dweb.link", gateways[1]);
         assertEq("ipfs.io", gateways[0]);
         assertEq(2, gateways.length);
-        
+
         gateway.replaceWeb3Gateway(0, "ipfs.namesys.xyz");
         gateways = gateway.listWeb3Gateways();
         assertEq("dweb.link", gateways[1]);
@@ -190,7 +190,8 @@ contract GatewayManagerTest is Test {
         assertEq(1, gateways.length);
     }
 
-    function test8_RandomGateway() public{
+    /// @dev Test a gateway
+    function test8_RandomGateway() public {
         string memory _path = "/.well-known/eth/freetib/contenthash";
         bytes memory _recordhash;
         string[] memory gateways = gateway.randomGateways(_recordhash, _path, 0);
@@ -212,18 +213,42 @@ contract GatewayManagerTest is Test {
         _recordhash = hex"3c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
         gateways = gateway.randomGateways(_recordhash, _path, 0);
         assertEq(4, gateways.length);
-        assertEq(gateways[0], "https://e5010172002408011220.3c5aba6c9b5055a5fa12281c486188ed.8ae2b6ef394b3d981b00d17a4b51735c.ipfs2.eth.limo/.well-known/eth/freetib/contenthash.json?t={data}");
-        assertEq(gateways[1], "https://dweb.link/ipns/f01720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c/.well-known/eth/freetib/contenthash.json?t={data}");
-        assertEq(gateways[2], "https://ipfs.namesys.xyz/ipns/f01720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c/.well-known/eth/freetib/contenthash.json?t={data}");
-        assertEq(gateways[3], "https://ccip.namesys.xyz/ipns/f01720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c/.well-known/eth/freetib/contenthash.json?t={data}");
+        assertEq(
+            gateways[0],
+            "https://e5010172002408011220.3c5aba6c9b5055a5fa12281c486188ed.8ae2b6ef394b3d981b00d17a4b51735c.ipfs2.eth.limo/.well-known/eth/freetib/contenthash.json?t={data}"
+        );
+        assertEq(
+            gateways[1],
+            "https://dweb.link/ipns/f01720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c/.well-known/eth/freetib/contenthash.json?t={data}"
+        );
+        assertEq(
+            gateways[2],
+            "https://ipfs.namesys.xyz/ipns/f01720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c/.well-known/eth/freetib/contenthash.json?t={data}"
+        );
+        assertEq(
+            gateways[3],
+            "https://ccip.namesys.xyz/ipns/f01720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c/.well-known/eth/freetib/contenthash.json?t={data}"
+        );
 
         _recordhash = hex"e50101720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c";
         gateways = gateway.randomGateways(_recordhash, _path, 0);
         assertEq(4, gateways.length);
-        assertEq(gateways[0], "https://e5010172002408011220.3c5aba6c9b5055a5fa12281c486188ed.8ae2b6ef394b3d981b00d17a4b51735c.ipfs2.eth.limo/.well-known/eth/freetib/contenthash.json?t={data}");
-        assertEq(gateways[1], "https://dweb.link/ipns/f01720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c/.well-known/eth/freetib/contenthash.json?t={data}");
-        assertEq(gateways[2], "https://ipfs.namesys.xyz/ipns/f01720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c/.well-known/eth/freetib/contenthash.json?t={data}");
-        assertEq(gateways[3], "https://ccip.namesys.xyz/ipns/f01720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c/.well-known/eth/freetib/contenthash.json?t={data}");
+        assertEq(
+            gateways[0],
+            "https://e5010172002408011220.3c5aba6c9b5055a5fa12281c486188ed.8ae2b6ef394b3d981b00d17a4b51735c.ipfs2.eth.limo/.well-known/eth/freetib/contenthash.json?t={data}"
+        );
+        assertEq(
+            gateways[1],
+            "https://dweb.link/ipns/f01720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c/.well-known/eth/freetib/contenthash.json?t={data}"
+        );
+        assertEq(
+            gateways[2],
+            "https://ipfs.namesys.xyz/ipns/f01720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c/.well-known/eth/freetib/contenthash.json?t={data}"
+        );
+        assertEq(
+            gateways[3],
+            "https://ccip.namesys.xyz/ipns/f01720024080112203c5aba6c9b5055a5fa12281c486188ed8ae2b6ef394b3d981b00d17a4b51735c/.well-known/eth/freetib/contenthash.json?t={data}"
+        );
     }
 }
 

@@ -1,1 +1,1 @@
-source .env && forge verify-contract --chain-id 5 --etherscan-api-key $ETHERSCAN_KEY 0xa859E4c7668E13b606B108dcA4fF9E79950d79d2 src/CCIP2ETH.sol:CCIP2ETH
+source .env && forge verify-contract --chain-id 1 --etherscan-api-key $ETHERSCAN_KEY 0x9d79FF2EC00b812E32D9768d88782101cB08D875 src/GatewayManager.sol:GatewayManager
